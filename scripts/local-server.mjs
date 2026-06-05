@@ -3,9 +3,9 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { buildImageApiRequest, extractImageDataUrl } from "./image-generation.js";
+import { buildImageApiRequest, extractImageDataUrl } from "../lib/image-generation.js";
 
-const appDir = fileURLToPath(new URL(".", import.meta.url));
+const publicDir = fileURLToPath(new URL("../public/", import.meta.url));
 const startPort = Number(process.env.PORT || 8787);
 const defaultBaseUrl = "https://api.kksj.org/v1";
 
@@ -89,9 +89,9 @@ async function serveStatic(req, res) {
   const url = new URL(req.url, "http://localhost");
   const rawPath = decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname);
   const safePath = normalize(rawPath).replace(/^(\.\.[/\\])+/, "");
-  const filePath = join(appDir, safePath);
+  const filePath = join(publicDir, safePath);
 
-  if (!filePath.startsWith(appDir)) {
+  if (!filePath.startsWith(publicDir)) {
     res.writeHead(403);
     res.end("Forbidden");
     return;

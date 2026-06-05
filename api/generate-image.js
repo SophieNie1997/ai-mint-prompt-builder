@@ -1,4 +1,4 @@
-import { buildImageApiRequest, extractImageDataUrl } from "../image-generation.js";
+import { buildImageApiRequest, extractImageDataUrl } from "../lib/image-generation.js";
 
 const defaultBaseUrl = "https://api.kksj.org/v1";
 

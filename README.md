@@ -5,7 +5,7 @@ Classroom prompt builder for Lumi Lesson 6. Students choose prompt blocks, build
 ## Local Classroom Mode
 
 ```bash
-KKSJ_API_KEY=your_key_here node local-server.mjs
+KKSJ_API_KEY=your_key_here node scripts/local-server.mjs
 ```
 
 Open `http://localhost:8787`.
