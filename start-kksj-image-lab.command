@@ -14,4 +14,4 @@ export IMAGE_QUALITY="standard"
 export IMAGE_SIZE="1024x1024"
 
 echo "Starting Image Lab..."
-node server.mjs
+node local-server.mjs
