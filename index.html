@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Mint Studio Prompt Builder</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Lesson 6 · AI Mint Studio</p>
+          <h1>Prompt Builder</h1>
+        </div>
+        <div class="class-rule">
+          <span>Better prompt</span>
+          <strong>better image</strong>
+        </div>
+      </header>
+
+      <section class="stage-grid" aria-label="Prompt builder classroom tool">
+        <section class="block-board" aria-labelledby="blocks-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Step 1</p>
+              <h2 id="blocks-title">Choose Blocks</h2>
+            </div>
+            <button class="ghost-button" id="resetButton" type="button">Reset</button>
+          </div>
+          <div id="blocks" class="blocks"></div>
+        </section>
+
+        <section class="prompt-board" aria-labelledby="prompt-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Step 2</p>
+              <h2 id="prompt-title">Build Prompt</h2>
+            </div>
+            <button class="weak-button" id="weakButton" type="button">Weak Prompt</button>
+          </div>
+
+          <div class="prompt-window">
+            <div class="prompt-topline">
+              <span id="promptStatus">Ready</span>
+              <span id="selectionSummary">Pick blocks with the class</span>
+            </div>
+            <div id="promptText" class="prompt-text" aria-live="polite">Choose blocks, then press BUILD PROMPT.</div>
+          </div>
+
+          <div class="action-row">
+            <button class="build-button" id="buildButton" type="button">BUILD PROMPT</button>
+            <button class="generate-button" id="generateButton" type="button">GENERATE IMAGE</button>
+            <button class="copy-button" id="copyButton" type="button">COPY FOR AI</button>
+            <button class="save-button" id="saveButton" type="button">SAVE VERSION</button>
+          </div>
+
+          <div class="image-studio-status">
+            <div>
+              <p class="eyebrow">Image Studio</p>
+              <strong id="generationStatus" aria-live="polite">Build a prompt, then generate in class.</strong>
+            </div>
+            <span class="server-pill">DALL-E 3</span>
+          </div>
+
+          <div class="teacher-note">
+            <strong>Class rhythm:</strong>
+            choose blocks → build prompt → generate image → fix prompt → compare versions
+          </div>
+        </section>
+
+        <section class="compare-board" aria-labelledby="compare-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Step 3</p>
+              <h2 id="compare-title">Image Lab</h2>
+            </div>
+            <button class="ghost-button" id="clearVersionsButton" type="button">Clear</button>
+          </div>
+
+          <div class="version-list" id="versionList"></div>
+        </section>
+      </section>
+    </main>
+
+    <template id="versionTemplate">
+      <article class="version-card">
+        <div class="version-head">
+          <span class="version-pill"></span>
+          <button type="button" class="mini-copy">Copy</button>
+        </div>
+        <div class="image-drop" tabindex="0">
+          <input type="file" accept="image/*" hidden />
+          <div class="drop-empty">
+            <span>Drop Image</span>
+            <small>or click to attach</small>
+          </div>
+          <img alt="" />
+        </div>
+        <div class="version-chips"></div>
+        <pre class="version-prompt"></pre>
+      </article>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
