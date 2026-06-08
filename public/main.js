@@ -92,10 +92,10 @@ const GENERATION_MESSAGES = [
 ];
 
 const SET_VALUES = [
-  { value: 5, label: "5 SHELLS", accent: "#57b9ff" },
-  { value: 10, label: "10 SHELLS", accent: "#ff8a3d" },
-  { value: 20, label: "20 SHELLS", accent: "#64c56a" },
-  { value: 100, label: "100 SHELLS", accent: "#f0b83b" },
+  { value: 5, label: "5 SHELLS", accent: "#57b9ff", tone: "aqua blue", scene: "small island cove and simple starter patterns" },
+  { value: 10, label: "10 SHELLS", accent: "#ff8a3d", tone: "warm coral orange", scene: "trade dock, market path, and friendly exchange details" },
+  { value: 20, label: "20 SHELLS", accent: "#64c56a", tone: "fresh leaf green", scene: "garden grove, teamwork path, and growing island plants" },
+  { value: 100, label: "100 SHELLS", accent: "#f0b83b", tone: "golden yellow with a little royal purple", scene: "grand island landmark, celebration details, and premium border ornaments" },
 ];
 
 let generationMessageTimer = null;
@@ -195,17 +195,41 @@ function buildCurrencySetPrompt(selection, step2Prompt = buildPrompt(selection))
     "Use this Step 2 prompt as the design brief:",
     step2Prompt.trim(),
     "",
-    "Now expand the same block choices into one matching Lumi Island money set.",
+    "Now expand the same block choices into one matching Lumi Island money system.",
     `Keep the selected symbol: ${labels.symbol}.`,
     `Keep the selected meaning: ${labels.meaning}.`,
     `Keep the selected style: ${styles}.`,
     `Keep the selected safety rules: ${safety}.`,
     `Change the single value into a full set of values: ${setValues} shells.`,
-    "Make one premium rectangular fantasy money artwork template, not four separate notes.",
-    "Use one consistent visual system: shell border, ocean wave pattern, small island logo area, polished classroom display style.",
-    "Leave clear center space for the webpage to add large value numbers and SHELLS labels.",
+    "Make four related but not identical fantasy money notes.",
+    "Each note should have a different value, color tone, and small scene motif while staying in one visual family.",
+    "Use a consistent Lumi Island brand, border language, symbol style, and classroom-friendly illustration style.",
     "No words, no numbers, no real money, no famous characters.",
     "Fantasy only. Kid-friendly.",
+  ].join("\n");
+}
+
+function buildCurrencyNotePrompt(selection, step2Prompt, note) {
+  const labels = getSelectionLabels(selection);
+  const styles = labels.style || "colorful, clean, and cute";
+  const safety = labels.safety || "fantasy only, no real money, kid-friendly";
+
+  return [
+    "Use this Step 2 prompt as the style brief:",
+    step2Prompt.trim(),
+    "",
+    `Create ONE fantasy Lumi Island currency note for the ${note.label} denomination.`,
+    `The value must be exactly ${note.value} shells.`,
+    `Show the number ${note.value} clearly and do not show any other denomination number.`,
+    `Keep the selected symbol: ${labels.symbol}.`,
+    `Keep the selected meaning: ${labels.meaning}.`,
+    `Keep the selected style: ${styles}.`,
+    `Keep the selected safety rules: ${safety}.`,
+    `Use this denomination color tone: ${note.tone}.`,
+    `Use this unique note scene: ${note.scene}.`,
+    "Make it part of the same Lumi Island money family: same brand feeling, similar border language, similar illustration style.",
+    "But do not make it a copy of the other notes. Give this denomination its own color and scene details.",
+    "Fantasy only. Kid-friendly. Do not copy real money. No famous characters.",
   ].join("\n");
 }
 
@@ -652,6 +676,45 @@ async function composeCurrencyNotes(baseImageDataUrl, labels) {
   });
 }
 
+async function prepareCurrencySetNote(generatedImageDataUrl, note) {
+  const image = await loadCanvasImage(generatedImageDataUrl);
+  const ratio = image
+    ? clampImageRatio(image.naturalWidth / image.naturalHeight)
+    : 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = 720;
+  canvas.height = Math.round(canvas.width / ratio);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff8ca";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawImageCover(ctx, image, canvas.width, canvas.height);
+
+  const badgeHeight = Math.max(48, Math.min(72, Math.round(canvas.height * 0.12)));
+  const badgeWidth = Math.max(150, Math.min(230, Math.round(canvas.width * 0.28 + String(note.value).length * 18)));
+  const badgeX = canvas.width - badgeWidth - 24;
+  const badgeY = canvas.height - badgeHeight - 24;
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
+  ctx.beginPath();
+  ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 14);
+  ctx.fill();
+  ctx.strokeStyle = withAlpha(note.accent, 0.95);
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.fillStyle = "#241f1b";
+  ctx.textAlign = "center";
+  ctx.font = `950 ${Math.round(badgeHeight * 0.52)}px Arial Rounded MT Bold, Arial, sans-serif`;
+  ctx.fillText(String(note.value), badgeX + badgeWidth / 2, badgeY + Math.round(badgeHeight * 0.5));
+  ctx.font = `900 ${Math.round(badgeHeight * 0.18)}px Arial Rounded MT Bold, Arial, sans-serif`;
+  ctx.fillText("SHELLS", badgeX + badgeWidth / 2, badgeY + Math.round(badgeHeight * 0.78));
+
+  return {
+    ...note,
+    ratio,
+    image: canvas.toDataURL("image/jpeg", 0.88),
+  };
+}
+
 function renderSetStudio() {
   const count = completedVersionCount();
   const locked = count < 2;
@@ -685,7 +748,7 @@ function renderSetStudio() {
     </div>
     <div class="currency-set-bridge">
       <span>Built from Step 2 Prompt</span>
-      <small>Visual master: ${state.currencySet.baseImageSource || "Step 2 AI Image"}</small>
+      <small>Set system: 4 denomination prompts</small>
       <pre></pre>
     </div>
     <div class="currency-set-grid"></div>
@@ -891,51 +954,41 @@ async function generateCurrencySet() {
   if (!state.prompt) buildCurrentPrompt();
   const sourcePrompt = state.prompt;
   const setPrompt = buildCurrencySetPrompt(state.selection, sourcePrompt);
-  const labels = getSelectionLabels(state.selection);
-  let masterVersion = findGeneratedVersionForPrompt(sourcePrompt);
   state.isGeneratingSet = true;
   renderSetStudio();
   startGenerationMessages();
 
   try {
-    if (!masterVersion) {
+    const notes = await Promise.all(SET_VALUES.map(async (note) => {
+      const notePrompt = buildCurrencyNotePrompt(state.selection, sourcePrompt, note);
       const response = await fetch("/api/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: sourcePrompt,
+          prompt: notePrompt,
           selection: state.selection,
-          mode: "currency-set-master",
+          denomination: note.value,
+          mode: "currency-set-note",
         }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Full set generation failed.");
+      if (!response.ok) throw new Error(data.error || `${note.label} generation failed.`);
 
-      masterVersion = {
-        number: state.versions.length + 1,
-        prompt: sourcePrompt,
-        labels,
-        image: data.imageDataUrl,
-        imageRatio: await getImageRatioFromSource(data.imageDataUrl),
-        source: "generated",
-      };
-      state.versions.unshift(masterVersion);
-      renderVersions();
-    }
-
-    const notes = await composeCurrencyNotes(masterVersion.image, labels);
+      return prepareCurrencySetNote(data.imageDataUrl, { ...note, prompt: notePrompt });
+    }));
+    const labels = getSelectionLabels(state.selection);
     state.currencySet = {
       prompt: setPrompt,
       sourcePrompt,
-      baseImage: masterVersion.image,
-      baseImageSource: `AI Image ${masterVersion.number}`,
-      masterVersionNumber: masterVersion.number,
+      baseImage: "",
+      baseImageSource: "Step 2 Prompt",
+      masterVersionNumber: 0,
       labels,
       notes,
       createdAt: new Date().toISOString(),
     };
-    els.setStatus.textContent = `Full set ready from AI Image ${masterVersion.number}.`;
-    setGenerationStatus(`Full money set built from AI Image ${masterVersion.number}.`);
+    els.setStatus.textContent = "Full set ready from Step 2 Prompt.";
+    setGenerationStatus("Full money set built as four denominations.");
     persistState();
     showToast("Full money set ready");
   } catch (error) {
