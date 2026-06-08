@@ -185,18 +185,25 @@ function buildPrompt(selection) {
   ].filter(Boolean).join("\n");
 }
 
-function buildCurrencySetPrompt(selection) {
-  const symbol = wordsFrom(selection, "symbol")[0];
-  const meaning = wordsFrom(selection, "meaning")[0];
-  const styles = joinWords(wordsFrom(selection, "style")) || "colorful, clean, and cute";
+function buildCurrencySetPrompt(selection, step2Prompt = buildPrompt(selection)) {
+  const labels = getSelectionLabels(selection);
+  const styles = labels.style || "colorful, clean, and cute";
+  const safety = labels.safety || "fantasy only, no real money, kid-friendly";
+  const setValues = SET_VALUES.map((note) => note.value).join(", ");
 
   return [
-    "Create a cohesive fantasy island currency set design base for Lumi Island.",
+    "Use this Step 2 prompt as the design brief:",
+    step2Prompt.trim(),
+    "",
+    "Now expand the same block choices into one matching Lumi Island money set.",
+    `Keep the selected symbol: ${labels.symbol}.`,
+    `Keep the selected meaning: ${labels.meaning}.`,
+    `Keep the selected style: ${styles}.`,
+    `Keep the selected safety rules: ${safety}.`,
+    `Change the single value into a full set of values: ${setValues} shells.`,
     "Make one premium rectangular fantasy money artwork template, not four separate notes.",
     "Use one consistent visual system: shell border, ocean wave pattern, small island logo area, polished classroom display style.",
-    `Use a ${symbol} motif because it means ${meaning}.`,
-    `Style: ${styles}.`,
-    "Leave clear space for large value numbers and SHELLS labels.",
+    "Leave clear center space for the webpage to add large value numbers and SHELLS labels.",
     "No words, no numbers, no real money, no famous characters.",
     "Fantasy only. Kid-friendly.",
   ].join("\n");
@@ -406,6 +413,7 @@ function cleanStoredCurrencySet(currencySet) {
   if (notes.length !== 4) return null;
   return {
     prompt: String(currencySet.prompt || ""),
+    sourcePrompt: String(currencySet.sourcePrompt || ""),
     baseImage: String(currencySet.baseImage || ""),
     labels: currencySet.labels && typeof currencySet.labels === "object" ? { ...currencySet.labels } : {},
     notes,
@@ -675,9 +683,14 @@ function renderSetStudio() {
       <strong>Lumi Island Money Set</strong>
       <button class="mini-copy" type="button">Copy Set Prompt</button>
     </div>
+    <div class="currency-set-bridge">
+      <span>Built from Step 2 Prompt</span>
+      <pre></pre>
+    </div>
     <div class="currency-set-grid"></div>
   `;
   card.querySelector(".mini-copy").addEventListener("click", () => copyText(state.currencySet.prompt));
+  card.querySelector(".currency-set-bridge pre").textContent = state.currencySet.sourcePrompt || state.currencySet.prompt;
   const grid = card.querySelector(".currency-set-grid");
   state.currencySet.notes.forEach((note) => {
     const noteCard = document.createElement("article");
@@ -873,7 +886,9 @@ async function generateCurrencySet() {
     return;
   }
 
-  const setPrompt = buildCurrencySetPrompt(state.selection);
+  if (!state.prompt) buildCurrentPrompt();
+  const sourcePrompt = state.prompt;
+  const setPrompt = buildCurrencySetPrompt(state.selection, sourcePrompt);
   state.isGeneratingSet = true;
   renderSetStudio();
   startGenerationMessages();
@@ -895,6 +910,7 @@ async function generateCurrencySet() {
     const notes = await composeCurrencyNotes(data.imageDataUrl, labels);
     state.currencySet = {
       prompt: setPrompt,
+      sourcePrompt,
       baseImage: data.imageDataUrl,
       labels,
       notes,

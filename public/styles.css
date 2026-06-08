@@ -504,6 +504,34 @@ h2 {
   line-height: 1.1;
 }
 
+.currency-set-bridge {
+  border-bottom: 2px dashed rgba(140, 64, 25, 0.35);
+  background: #fffaf0;
+  padding: 9px 10px;
+}
+
+.currency-set-bridge span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--brown);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.currency-set-bridge pre {
+  max-height: 88px;
+  overflow: auto;
+  margin: 0;
+  color: var(--ink);
+  font-family: "Aptos Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
 .currency-set-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1010,6 +1038,15 @@ h2 {
 
   .currency-set-title strong {
     font-size: 14px;
+  }
+
+  .currency-set-bridge {
+    padding: 8px;
+  }
+
+  .currency-set-bridge pre {
+    max-height: 72px;
+    font-size: 10px;
   }
 
   .currency-set-grid {
