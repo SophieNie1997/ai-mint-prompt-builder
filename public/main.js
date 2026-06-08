@@ -9,7 +9,7 @@ const DEFAULT_CUSTOM_VALUES = {
   fix: "",
 };
 
-const CUSTOM_OPTION = { id: CUSTOM_OPTION_ID, label: "custom", prompt: "", icon: "ABC" };
+const CUSTOM_OPTION = { id: CUSTOM_OPTION_ID, label: "custom", prompt: "", icon: "✏️" };
 
 const CUSTOM_PROMPT_FALLBACKS = {
   value: "custom value",
