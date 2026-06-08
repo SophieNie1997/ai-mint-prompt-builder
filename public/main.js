@@ -92,10 +92,10 @@ const GENERATION_MESSAGES = [
 ];
 
 const SET_VALUES = [
-  { value: 5, label: "5 SHELLS", accent: "#57b9ff", tone: "aqua blue", scene: "small island cove and simple starter patterns" },
-  { value: 10, label: "10 SHELLS", accent: "#ff8a3d", tone: "warm coral orange", scene: "trade dock, market path, and friendly exchange details" },
-  { value: 20, label: "20 SHELLS", accent: "#64c56a", tone: "fresh leaf green", scene: "garden grove, teamwork path, and growing island plants" },
-  { value: 100, label: "100 SHELLS", accent: "#f0b83b", tone: "golden yellow with a little royal purple", scene: "grand island landmark, celebration details, and premium border ornaments" },
+  { value: 5, label: "5 SHELLS", accent: "#57b9ff", tone: "aqua blue", scene: "small starter details around the same main symbol" },
+  { value: 10, label: "10 SHELLS", accent: "#ff8a3d", tone: "warm coral orange", scene: "small trade details around the same main symbol" },
+  { value: 20, label: "20 SHELLS", accent: "#64c56a", tone: "fresh leaf green", scene: "small growth details around the same main symbol" },
+  { value: 100, label: "100 SHELLS", accent: "#f0b83b", tone: "golden yellow with a little royal purple", scene: "small premium celebration details around the same main symbol" },
 ];
 
 let generationMessageTimer = null;
@@ -209,7 +209,11 @@ function buildCurrencySetPrompt(selection, step2Prompt = buildPrompt(selection))
   ].join("\n");
 }
 
-function buildCurrencyNotePrompt(selection, step2Prompt, note) {
+function selectedValueNumber(selection) {
+  return Number.parseInt(wordsFrom(selection, "value")[0], 10) || 0;
+}
+
+function buildCurrencyNotePrompt(selection, step2Prompt, note, masterValue) {
   const labels = getSelectionLabels(selection);
   const styles = labels.style || "colorful, clean, and cute";
   const safety = labels.safety || "fantasy only, no real money, kid-friendly";
@@ -218,7 +222,8 @@ function buildCurrencyNotePrompt(selection, step2Prompt, note) {
     "Use this Step 2 prompt as the style brief:",
     step2Prompt.trim(),
     "",
-    `Create ONE fantasy Lumi Island currency note for the ${note.label} denomination.`,
+    `The class already has a master note for ${masterValue} shells from the Step 2 prompt.`,
+    `Create ONE sister note for the ${note.label} denomination.`,
     `The value must be exactly ${note.value} shells.`,
     `Show the number ${note.value} clearly and do not show any other denomination number.`,
     `Keep the selected symbol: ${labels.symbol}.`,
@@ -226,9 +231,10 @@ function buildCurrencyNotePrompt(selection, step2Prompt, note) {
     `Keep the selected style: ${styles}.`,
     `Keep the selected safety rules: ${safety}.`,
     `Use this denomination color tone: ${note.tone}.`,
-    `Use this unique note scene: ${note.scene}.`,
-    "Make it part of the same Lumi Island money family: same brand feeling, similar border language, similar illustration style.",
-    "But do not make it a copy of the other notes. Give this denomination its own color and scene details.",
+    `Use this small denomination detail: ${note.scene}.`,
+    "Match the master note closely: same overall composition, same central symbol placement, same border density, same line style, same cute classroom illustration style.",
+    "Only change the denomination number, color tone, and small supporting details. Do not change the whole layout.",
+    "Make it a sister note in the same money family, not a new poster, not a new scene, not a different art style.",
     "Fantasy only. Kid-friendly. Do not copy real money. No famous characters.",
   ].join("\n");
 }
@@ -420,6 +426,10 @@ function findGeneratedVersionForPrompt(prompt) {
   ));
 }
 
+function findVersionByNumber(number) {
+  return state.versions.find((version) => Number(version.number) === Number(number));
+}
+
 function cleanStoredVersions(versions) {
   if (!Array.isArray(versions)) return [];
   return versions
@@ -448,6 +458,9 @@ function cleanStoredCurrencySet(currencySet) {
         accent: String(note.accent || "#ff8a3d"),
         image: String(note.image || ""),
         ratio: Number.isFinite(Number(note.ratio)) ? Number(note.ratio) : 12 / 7,
+        source: String(note.source || ""),
+        versionNumber: Number(note.versionNumber) || 0,
+        prompt: String(note.prompt || ""),
       }))
     : [];
   if (notes.length !== 4) return null;
@@ -748,7 +761,7 @@ function renderSetStudio() {
     </div>
     <div class="currency-set-bridge">
       <span>Built from Step 2 Prompt</span>
-      <small>Set system: 4 denomination prompts</small>
+      <small>Master note kept, sister notes matched</small>
       <pre></pre>
     </div>
     <div class="currency-set-grid"></div>
@@ -757,12 +770,14 @@ function renderSetStudio() {
   card.querySelector(".currency-set-bridge pre").textContent = state.currencySet.sourcePrompt || state.currencySet.prompt;
   const grid = card.querySelector(".currency-set-grid");
   state.currencySet.notes.forEach((note) => {
+    const linkedVersion = note.versionNumber ? findVersionByNumber(note.versionNumber) : null;
+    const imageSource = note.image || linkedVersion?.image || "";
     const noteCard = document.createElement("article");
     noteCard.className = "currency-note";
     noteCard.style.setProperty("--accent", note.accent);
-    noteCard.style.setProperty("--note-ratio", String(note.ratio || 12 / 7));
+    noteCard.style.setProperty("--note-ratio", String(note.ratio || linkedVersion?.imageRatio || 12 / 7));
     noteCard.innerHTML = `
-      <img src="${note.image}" alt="${note.label} Lumi Island money" />
+      <img src="${imageSource}" alt="${note.label} Lumi Island money" />
       <strong>${note.label}</strong>
     `;
     grid.append(noteCard);
@@ -954,13 +969,53 @@ async function generateCurrencySet() {
   if (!state.prompt) buildCurrentPrompt();
   const sourcePrompt = state.prompt;
   const setPrompt = buildCurrencySetPrompt(state.selection, sourcePrompt);
+  const masterValue = selectedValueNumber(state.selection);
+  const labels = getSelectionLabels(state.selection);
+  let masterVersion = findGeneratedVersionForPrompt(sourcePrompt);
   state.isGeneratingSet = true;
   renderSetStudio();
   startGenerationMessages();
 
   try {
+    if (!masterVersion) {
+      const response = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: sourcePrompt,
+          selection: state.selection,
+          denomination: masterValue,
+          mode: "currency-set-master",
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Master note generation failed.");
+
+      masterVersion = {
+        number: state.versions.length + 1,
+        prompt: sourcePrompt,
+        labels,
+        image: data.imageDataUrl,
+        imageRatio: await getImageRatioFromSource(data.imageDataUrl),
+        source: "generated",
+      };
+      state.versions.unshift(masterVersion);
+      renderVersions();
+    }
+
     const notes = await Promise.all(SET_VALUES.map(async (note) => {
-      const notePrompt = buildCurrencyNotePrompt(state.selection, sourcePrompt, note);
+      if (note.value === masterValue) {
+        return {
+          ...note,
+          image: masterVersion.image,
+          ratio: masterVersion.imageRatio || await getImageRatioFromSource(masterVersion.image),
+          source: "master",
+          versionNumber: masterVersion.number,
+          prompt: sourcePrompt,
+        };
+      }
+
+      const notePrompt = buildCurrencyNotePrompt(state.selection, sourcePrompt, note, masterValue);
       const response = await fetch("/api/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -976,19 +1031,18 @@ async function generateCurrencySet() {
 
       return prepareCurrencySetNote(data.imageDataUrl, { ...note, prompt: notePrompt });
     }));
-    const labels = getSelectionLabels(state.selection);
     state.currencySet = {
       prompt: setPrompt,
       sourcePrompt,
-      baseImage: "",
-      baseImageSource: "Step 2 Prompt",
-      masterVersionNumber: 0,
+      baseImage: masterVersion.image,
+      baseImageSource: `AI Image ${masterVersion.number}`,
+      masterVersionNumber: masterVersion.number,
       labels,
       notes,
       createdAt: new Date().toISOString(),
     };
-    els.setStatus.textContent = "Full set ready from Step 2 Prompt.";
-    setGenerationStatus("Full money set built as four denominations.");
+    els.setStatus.textContent = `Full set ready from AI Image ${masterVersion.number}.`;
+    setGenerationStatus(`Full money set built from master AI Image ${masterVersion.number}.`);
     persistState();
     showToast("Full money set ready");
   } catch (error) {
