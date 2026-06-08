@@ -512,12 +512,21 @@ h2 {
 
 .currency-set-bridge span {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   color: var(--brown);
   font-size: 11px;
   font-weight: 950;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.currency-set-bridge small {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--brown);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.2;
 }
 
 .currency-set-bridge pre {
@@ -549,7 +558,7 @@ h2 {
 .currency-note img {
   display: block;
   width: 100%;
-  aspect-ratio: 12 / 7;
+  aspect-ratio: var(--note-ratio, 12 / 7);
   object-fit: cover;
   border-bottom: 2px solid var(--brown);
   background: var(--paper);

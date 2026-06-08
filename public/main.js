@@ -381,6 +381,17 @@ function completedVersionCount() {
   return state.versions.filter((version) => !version.pending && version.source !== "failed").length;
 }
 
+function findGeneratedVersionForPrompt(prompt) {
+  const cleanPrompt = String(prompt || "").trim();
+  return state.versions.find((version) => (
+    version
+    && version.source === "generated"
+    && version.image
+    && !version.pending
+    && String(version.prompt || "").trim() === cleanPrompt
+  ));
+}
+
 function cleanStoredVersions(versions) {
   if (!Array.isArray(versions)) return [];
   return versions
@@ -408,6 +419,7 @@ function cleanStoredCurrencySet(currencySet) {
         label: String(note.label || ""),
         accent: String(note.accent || "#ff8a3d"),
         image: String(note.image || ""),
+        ratio: Number.isFinite(Number(note.ratio)) ? Number(note.ratio) : 12 / 7,
       }))
     : [];
   if (notes.length !== 4) return null;
@@ -415,6 +427,8 @@ function cleanStoredCurrencySet(currencySet) {
     prompt: String(currencySet.prompt || ""),
     sourcePrompt: String(currencySet.sourcePrompt || ""),
     baseImage: String(currencySet.baseImage || ""),
+    baseImageSource: String(currencySet.baseImageSource || ""),
+    masterVersionNumber: Number(currencySet.masterVersionNumber) || 0,
     labels: currencySet.labels && typeof currencySet.labels === "object" ? { ...currencySet.labels } : {},
     notes,
     createdAt: String(currencySet.createdAt || ""),
@@ -587,7 +601,7 @@ function drawCurrencyNote(ctx, note, baseImage, labels) {
   ctx.fillRect(0, 0, width, height);
   drawImageCover(ctx, baseImage, width, height);
 
-  ctx.fillStyle = "rgba(255, 255, 255, 0.74)";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.58)";
   ctx.fillRect(0, 0, width, height);
   ctx.fillStyle = withAlpha(note.accent, 0.24);
   ctx.fillRect(0, 0, width, height);
@@ -641,14 +655,18 @@ function drawCurrencyNote(ctx, note, baseImage, labels) {
 
 async function composeCurrencyNotes(baseImageDataUrl, labels) {
   const baseImage = await loadCanvasImage(baseImageDataUrl);
+  const ratio = baseImage
+    ? clampImageRatio(baseImage.naturalWidth / baseImage.naturalHeight)
+    : 12 / 7;
   return SET_VALUES.map((note) => {
     const canvas = document.createElement("canvas");
     canvas.width = 720;
-    canvas.height = 420;
+    canvas.height = Math.round(canvas.width / ratio);
     const ctx = canvas.getContext("2d");
     drawCurrencyNote(ctx, note, baseImage, labels);
     return {
       ...note,
+      ratio,
       image: canvas.toDataURL("image/png"),
     };
   });
@@ -668,7 +686,9 @@ function renderSetStudio() {
       ? "Save 2 versions to unlock."
       : "Save 1 more version to unlock.";
   } else if (state.currencySet) {
-    els.setStatus.textContent = "Full set ready. Compare the family look.";
+    els.setStatus.textContent = state.currencySet.baseImageSource
+      ? `Full set ready from ${state.currencySet.baseImageSource}.`
+      : "Full set ready. Compare the family look.";
   } else {
     els.setStatus.textContent = "Ready to mint a full set.";
   }
@@ -685,6 +705,7 @@ function renderSetStudio() {
     </div>
     <div class="currency-set-bridge">
       <span>Built from Step 2 Prompt</span>
+      <small>Visual master: ${state.currencySet.baseImageSource || "Step 2 AI Image"}</small>
       <pre></pre>
     </div>
     <div class="currency-set-grid"></div>
@@ -696,6 +717,7 @@ function renderSetStudio() {
     const noteCard = document.createElement("article");
     noteCard.className = "currency-note";
     noteCard.style.setProperty("--accent", note.accent);
+    noteCard.style.setProperty("--note-ratio", String(note.ratio || 12 / 7));
     noteCard.innerHTML = `
       <img src="${note.image}" alt="${note.label} Lumi Island money" />
       <strong>${note.label}</strong>
@@ -889,35 +911,51 @@ async function generateCurrencySet() {
   if (!state.prompt) buildCurrentPrompt();
   const sourcePrompt = state.prompt;
   const setPrompt = buildCurrencySetPrompt(state.selection, sourcePrompt);
+  const labels = getSelectionLabels(state.selection);
+  let masterVersion = findGeneratedVersionForPrompt(sourcePrompt);
   state.isGeneratingSet = true;
   renderSetStudio();
   startGenerationMessages();
 
   try {
-    const response = await fetch("/api/generate-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt: setPrompt,
-        selection: state.selection,
-        mode: "currency-set",
-      }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "Full set generation failed.");
+    if (!masterVersion) {
+      const response = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: sourcePrompt,
+          selection: state.selection,
+          mode: "currency-set-master",
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Full set generation failed.");
 
-    const labels = getSelectionLabels(state.selection);
-    const notes = await composeCurrencyNotes(data.imageDataUrl, labels);
+      masterVersion = {
+        number: state.versions.length + 1,
+        prompt: sourcePrompt,
+        labels,
+        image: data.imageDataUrl,
+        imageRatio: await getImageRatioFromSource(data.imageDataUrl),
+        source: "generated",
+      };
+      state.versions.unshift(masterVersion);
+      renderVersions();
+    }
+
+    const notes = await composeCurrencyNotes(masterVersion.image, labels);
     state.currencySet = {
       prompt: setPrompt,
       sourcePrompt,
-      baseImage: data.imageDataUrl,
+      baseImage: masterVersion.image,
+      baseImageSource: `AI Image ${masterVersion.number}`,
+      masterVersionNumber: masterVersion.number,
       labels,
       notes,
       createdAt: new Date().toISOString(),
     };
-    els.setStatus.textContent = "Full set ready. Compare the family look.";
-    setGenerationStatus("Full money set saved in Image Lab.");
+    els.setStatus.textContent = `Full set ready from AI Image ${masterVersion.number}.`;
+    setGenerationStatus(`Full money set built from AI Image ${masterVersion.number}.`);
     persistState();
     showToast("Full money set ready");
   } catch (error) {
