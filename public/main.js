@@ -203,9 +203,25 @@ function buildCurrencySetPrompt(selection, step2Prompt = buildPrompt(selection))
     `Change the single value into a full set of values: ${setValues} shells.`,
     "Make four related but not identical fantasy money notes.",
     "Each note should have a different value, color tone, and small scene motif while staying in one visual family.",
+    "Create every note as a square 1:1 currency design, not a long horizontal banknote.",
+    "Keep the whole note inside the square frame with safe margins.",
     "Use a consistent Lumi Island brand, border language, symbol style, and classroom-friendly illustration style.",
     "No words, no numbers, no real money, no famous characters.",
     "Fantasy only. Kid-friendly.",
+  ].join("\n");
+}
+
+function buildCurrencyMasterPrompt(step2Prompt, masterValue) {
+  return [
+    "Use this Step 2 prompt as the design brief:",
+    step2Prompt.trim(),
+    "",
+    `Create ONE square 1:1 Lumi Island fantasy money note for ${masterValue} shells.`,
+    `The value must be exactly ${masterValue} shells.`,
+    "Use a square 1:1 composition, not a long horizontal banknote.",
+    "Keep the whole currency design inside the square frame with safe margins.",
+    "Leave the bottom-right corner calm enough for a small denomination badge.",
+    "Fantasy only. Kid-friendly. Do not copy real money. No famous characters.",
   ].join("\n");
 }
 
@@ -232,6 +248,9 @@ function buildCurrencyNotePrompt(selection, step2Prompt, note, masterValue) {
     `Keep the selected safety rules: ${safety}.`,
     `Use this denomination color tone: ${note.tone}.`,
     `Use this small denomination detail: ${note.scene}.`,
+    "Use a square 1:1 composition, not a long horizontal banknote.",
+    "Keep the whole currency design inside the square frame with safe margins.",
+    "Leave the bottom-right corner calm enough for a small denomination badge.",
     "Match the master note closely: same overall composition, same central symbol placement, same border density, same line style, same cute classroom illustration style.",
     "Only change the denomination number, color tone, and small supporting details. Do not change the whole layout.",
     "Make it a sister note in the same money family, not a new poster, not a new scene, not a different art style.",
@@ -622,6 +641,18 @@ function drawImageCover(ctx, image, width, height) {
   ctx.drawImage(image, sx, sy, sw, sh, 0, 0, width, height);
 }
 
+function drawImageContain(ctx, image, width, height, padding = 24) {
+  if (!image) return;
+  const availableWidth = width - padding * 2;
+  const availableHeight = height - padding * 2;
+  const scale = Math.min(availableWidth / image.naturalWidth, availableHeight / image.naturalHeight);
+  const dw = image.naturalWidth * scale;
+  const dh = image.naturalHeight * scale;
+  const dx = (width - dw) / 2;
+  const dy = (height - dh) / 2;
+  ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight, dx, dy, dw, dh);
+}
+
 function drawShellDots(ctx, width, height, color) {
   ctx.fillStyle = color;
   for (let i = 0; i < 11; i += 1) {
@@ -691,16 +722,21 @@ async function composeCurrencyNotes(baseImageDataUrl, labels) {
 
 async function prepareCurrencySetNote(generatedImageDataUrl, note) {
   const image = await loadCanvasImage(generatedImageDataUrl);
-  const ratio = image
+  const sourceRatio = image
     ? clampImageRatio(image.naturalWidth / image.naturalHeight)
     : 1;
+  const ratio = 1;
   const canvas = document.createElement("canvas");
   canvas.width = 720;
-  canvas.height = Math.round(canvas.width / ratio);
+  canvas.height = 720;
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = "#fff8ca";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  drawImageCover(ctx, image, canvas.width, canvas.height);
+  if (Math.abs(sourceRatio - 1) <= 0.12) {
+    drawImageCover(ctx, image, canvas.width, canvas.height);
+  } else {
+    drawImageContain(ctx, image, canvas.width, canvas.height, 24);
+  }
 
   const badgeHeight = Math.max(48, Math.min(72, Math.round(canvas.height * 0.12)));
   const badgeWidth = Math.max(150, Math.min(230, Math.round(canvas.width * 0.28 + String(note.value).length * 18)));
@@ -982,7 +1018,7 @@ async function generateCurrencySet() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: sourcePrompt,
+          prompt: buildCurrencyMasterPrompt(sourcePrompt, masterValue),
           selection: state.selection,
           denomination: masterValue,
           mode: "currency-set-master",
