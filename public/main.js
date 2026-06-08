@@ -78,8 +78,10 @@ const state = {
   selection: structuredClone(DEFAULT_SELECTION),
   prompt: "",
   versions: [],
+  currencySet: null,
   weakMode: false,
   isGenerating: false,
+  isGeneratingSet: false,
 };
 
 const GENERATION_MESSAGES = [
@@ -87,6 +89,13 @@ const GENERATION_MESSAGES = [
   "Drawing the main symbol...",
   "Polishing the coin face...",
   "Saving image to the lab...",
+];
+
+const SET_VALUES = [
+  { value: 5, label: "5 SHELLS", accent: "#57b9ff" },
+  { value: 10, label: "10 SHELLS", accent: "#ff8a3d" },
+  { value: 20, label: "20 SHELLS", accent: "#64c56a" },
+  { value: 100, label: "100 SHELLS", accent: "#f0b83b" },
 ];
 
 let generationMessageTimer = null;
@@ -104,6 +113,9 @@ const els = {
   resetButton: document.querySelector("#resetButton"),
   weakButton: document.querySelector("#weakButton"),
   clearVersionsButton: document.querySelector("#clearVersionsButton"),
+  mintSetButton: document.querySelector("#mintSetButton"),
+  setStatus: document.querySelector("#setStatus"),
+  setLab: document.querySelector("#setLab"),
   versionList: document.querySelector("#versionList"),
   versionTemplate: document.querySelector("#versionTemplate"),
 };
@@ -171,6 +183,23 @@ function buildPrompt(selection) {
     safety,
     fixes,
   ].filter(Boolean).join("\n");
+}
+
+function buildCurrencySetPrompt(selection) {
+  const symbol = wordsFrom(selection, "symbol")[0];
+  const meaning = wordsFrom(selection, "meaning")[0];
+  const styles = joinWords(wordsFrom(selection, "style")) || "colorful, clean, and cute";
+
+  return [
+    "Create a cohesive fantasy island currency set design base for Lumi Island.",
+    "Make one premium rectangular fantasy money artwork template, not four separate notes.",
+    "Use one consistent visual system: shell border, ocean wave pattern, small island logo area, polished classroom display style.",
+    `Use a ${symbol} motif because it means ${meaning}.`,
+    `Style: ${styles}.`,
+    "Leave clear space for large value numbers and SHELLS labels.",
+    "No words, no numbers, no real money, no famous characters.",
+    "Fantasy only. Kid-friendly.",
+  ].join("\n");
 }
 
 function buildPromptParts(selection) {
@@ -341,6 +370,10 @@ function labelsForCurrentPrompt() {
     : getSelectionLabels(state.selection);
 }
 
+function completedVersionCount() {
+  return state.versions.filter((version) => !version.pending && version.source !== "failed").length;
+}
+
 function cleanStoredVersions(versions) {
   if (!Array.isArray(versions)) return [];
   return versions
@@ -357,6 +390,29 @@ function cleanStoredVersions(versions) {
     }));
 }
 
+function cleanStoredCurrencySet(currencySet) {
+  if (!currencySet || typeof currencySet !== "object") return null;
+  const notes = Array.isArray(currencySet.notes)
+    ? currencySet.notes
+      .filter((note) => note && note.image && note.label)
+      .slice(0, 4)
+      .map((note) => ({
+        value: Number(note.value) || 0,
+        label: String(note.label || ""),
+        accent: String(note.accent || "#ff8a3d"),
+        image: String(note.image || ""),
+      }))
+    : [];
+  if (notes.length !== 4) return null;
+  return {
+    prompt: String(currencySet.prompt || ""),
+    baseImage: String(currencySet.baseImage || ""),
+    labels: currencySet.labels && typeof currencySet.labels === "object" ? { ...currencySet.labels } : {},
+    notes,
+    createdAt: String(currencySet.createdAt || ""),
+  };
+}
+
 function persistState() {
   try {
     localStorage.setItem(
@@ -366,6 +422,7 @@ function persistState() {
         prompt: state.prompt,
         weakMode: state.weakMode,
         versions: cleanStoredVersions(state.versions),
+        currencySet: cleanStoredCurrencySet(state.currencySet),
       }),
     );
   } catch {
@@ -381,6 +438,7 @@ function restoreState() {
     state.prompt = String(stored.prompt || "");
     state.weakMode = Boolean(stored.weakMode);
     state.versions = cleanStoredVersions(stored.versions);
+    state.currencySet = cleanStoredCurrencySet(stored.currencySet);
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
@@ -463,6 +521,175 @@ function attachDropHandlers(card, version) {
     attachFile(event.dataTransfer.files[0]);
   });
   input.addEventListener("change", () => attachFile(input.files[0]));
+}
+
+function hexToRgb(hex) {
+  const clean = hex.replace("#", "");
+  const value = Number.parseInt(clean.length === 3
+    ? clean.split("").map((char) => char + char).join("")
+    : clean, 16);
+  return {
+    r: (value >> 16) & 255,
+    g: (value >> 8) & 255,
+    b: value & 255,
+  };
+}
+
+function withAlpha(hex, alpha) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function loadCanvasImage(src) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", () => resolve(null));
+    image.src = src;
+  });
+}
+
+function drawImageCover(ctx, image, width, height) {
+  if (!image) return;
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+  const sw = width / scale;
+  const sh = height / scale;
+  const sx = (image.naturalWidth - sw) / 2;
+  const sy = (image.naturalHeight - sh) / 2;
+  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, width, height);
+}
+
+function drawShellDots(ctx, width, height, color) {
+  ctx.fillStyle = color;
+  for (let i = 0; i < 11; i += 1) {
+    const x = 52 + i * ((width - 104) / 10);
+    ctx.beginPath();
+    ctx.arc(x, 38, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x, height - 38, 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawCurrencyNote(ctx, note, baseImage, labels) {
+  const width = ctx.canvas.width;
+  const height = ctx.canvas.height;
+  ctx.fillStyle = "#fff8ca";
+  ctx.fillRect(0, 0, width, height);
+  drawImageCover(ctx, baseImage, width, height);
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.74)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = withAlpha(note.accent, 0.24);
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = withAlpha(note.accent, 0.9);
+  ctx.fillRect(0, 0, width, 34);
+  ctx.fillRect(0, height - 34, width, 34);
+
+  ctx.strokeStyle = "#8c4019";
+  ctx.lineWidth = 12;
+  ctx.strokeRect(22, 22, width - 44, height - 44);
+  ctx.lineWidth = 4;
+  ctx.strokeRect(54, 58, width - 108, height - 116);
+  drawShellDots(ctx, width, height, withAlpha(note.accent, 0.95));
+
+  ctx.fillStyle = "#8c4019";
+  ctx.font = "900 34px Arial Rounded MT Bold, Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("LUMI ISLAND", width / 2, 88);
+  ctx.font = "800 18px Arial Rounded MT Bold, Arial, sans-serif";
+  ctx.fillText("FANTASY CURRENCY", width / 2, 114);
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
+  ctx.strokeStyle = "#8c4019";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(width / 2 - 152, height / 2 - 100, 304, 178, 18);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#241f1b";
+  ctx.font = "950 112px Arial Rounded MT Bold, Arial, sans-serif";
+  ctx.fillText(String(note.value), width / 2, height / 2 + 10);
+  ctx.font = "900 34px Arial Rounded MT Bold, Arial, sans-serif";
+  ctx.fillText("SHELLS", width / 2, height / 2 + 58);
+
+  const symbol = labels.symbol || "island";
+  const meaning = labels.meaning || "trade";
+  ctx.fillStyle = withAlpha(note.accent, 0.86);
+  ctx.beginPath();
+  ctx.arc(100, height / 2, 50, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(width - 100, height / 2, 50, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#8c4019";
+  ctx.font = `900 ${symbol.length > 7 ? 16 : 22}px Arial Rounded MT Bold, Arial, sans-serif`;
+  ctx.fillText(symbol.toUpperCase(), 100, height / 2 - 2);
+  ctx.font = `850 ${meaning.length > 7 ? 15 : 18}px Arial Rounded MT Bold, Arial, sans-serif`;
+  ctx.fillText(meaning.toUpperCase(), width - 100, height / 2 - 2);
+}
+
+async function composeCurrencyNotes(baseImageDataUrl, labels) {
+  const baseImage = await loadCanvasImage(baseImageDataUrl);
+  return SET_VALUES.map((note) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 720;
+    canvas.height = 420;
+    const ctx = canvas.getContext("2d");
+    drawCurrencyNote(ctx, note, baseImage, labels);
+    return {
+      ...note,
+      image: canvas.toDataURL("image/png"),
+    };
+  });
+}
+
+function renderSetStudio() {
+  const count = completedVersionCount();
+  const locked = count < 2;
+  els.mintSetButton.disabled = locked || state.isGeneratingSet;
+  els.mintSetButton.textContent = state.isGeneratingSet ? "MINTING SET..." : "MINT FULL SET";
+
+  if (state.isGeneratingSet) {
+    els.setStatus.textContent = "Minting one matching money system...";
+  } else if (locked) {
+    const needed = 2 - count;
+    els.setStatus.textContent = needed === 2
+      ? "Save 2 versions to unlock."
+      : "Save 1 more version to unlock.";
+  } else if (state.currencySet) {
+    els.setStatus.textContent = "Full set ready. Compare the family look.";
+  } else {
+    els.setStatus.textContent = "Ready to mint a full set.";
+  }
+
+  els.setLab.innerHTML = "";
+  if (!state.currencySet) return;
+
+  const card = document.createElement("article");
+  card.className = "currency-set-card";
+  card.innerHTML = `
+    <div class="currency-set-title">
+      <strong>Lumi Island Money Set</strong>
+      <button class="mini-copy" type="button">Copy Set Prompt</button>
+    </div>
+    <div class="currency-set-grid"></div>
+  `;
+  card.querySelector(".mini-copy").addEventListener("click", () => copyText(state.currencySet.prompt));
+  const grid = card.querySelector(".currency-set-grid");
+  state.currencySet.notes.forEach((note) => {
+    const noteCard = document.createElement("article");
+    noteCard.className = "currency-note";
+    noteCard.style.setProperty("--accent", note.accent);
+    noteCard.innerHTML = `
+      <img src="${note.image}" alt="${note.label} Lumi Island money" />
+      <strong>${note.label}</strong>
+    `;
+    grid.append(noteCard);
+  });
+  els.setLab.append(card);
 }
 
 function renderVersions() {
@@ -558,6 +785,7 @@ function saveVersion() {
     image: "",
     source: "manual",
   });
+  renderSetStudio();
   renderVersions();
   persistState();
   showToast(`Version ${state.versions.length} saved`);
@@ -582,6 +810,7 @@ async function generateImage() {
     pending: true,
   };
   state.versions.unshift(pendingVersion);
+  renderSetStudio();
   renderVersions();
 
   state.isGenerating = true;
@@ -606,6 +835,7 @@ async function generateImage() {
     pendingVersion.imageRatio = await getImageRatioFromSource(data.imageDataUrl);
     pendingVersion.source = "generated";
     pendingVersion.pending = false;
+    renderSetStudio();
     renderVersions();
     setGenerationStatus(`Image saved as AI Image ${pendingVersion.number}.`);
     persistState();
@@ -615,6 +845,7 @@ async function generateImage() {
     pendingVersion.source = "failed";
     pendingVersion.pending = false;
     pendingVersion.error = message;
+    renderSetStudio();
     renderVersions();
     setGenerationStatus(message);
     persistState();
@@ -628,11 +859,69 @@ async function generateImage() {
   }
 }
 
+async function generateCurrencySet() {
+  if (state.isGeneratingSet) return;
+  if (completedVersionCount() < 2) {
+    renderSetStudio();
+    showToast("Save 2 versions to unlock");
+    return;
+  }
+
+  if (window.location.protocol === "file:") {
+    els.setStatus.textContent = "Open with local server for one-click set minting.";
+    showToast("Use local server for Mint Full Set");
+    return;
+  }
+
+  const setPrompt = buildCurrencySetPrompt(state.selection);
+  state.isGeneratingSet = true;
+  renderSetStudio();
+  startGenerationMessages();
+
+  try {
+    const response = await fetch("/api/generate-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: setPrompt,
+        selection: state.selection,
+        mode: "currency-set",
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Full set generation failed.");
+
+    const labels = getSelectionLabels(state.selection);
+    const notes = await composeCurrencyNotes(data.imageDataUrl, labels);
+    state.currencySet = {
+      prompt: setPrompt,
+      baseImage: data.imageDataUrl,
+      labels,
+      notes,
+      createdAt: new Date().toISOString(),
+    };
+    els.setStatus.textContent = "Full set ready. Compare the family look.";
+    setGenerationStatus("Full money set saved in Image Lab.");
+    persistState();
+    showToast("Full money set ready");
+  } catch (error) {
+    const message = error.message || "Full set generation failed.";
+    els.setStatus.textContent = message;
+    setGenerationStatus(message);
+    showToast("Set not generated");
+  } finally {
+    stopGenerationMessages();
+    state.isGeneratingSet = false;
+    renderSetStudio();
+  }
+}
+
 function render({ resetPrompt = true } = {}) {
   renderSelections();
   if (resetPrompt) state.prompt = "";
   renderPrompt();
   if (resetPrompt) setGenerationStatus("Build a prompt, then generate in class.");
+  renderSetStudio();
   persistState();
 }
 
@@ -644,6 +933,7 @@ els.buildButton.addEventListener("click", () => {
 els.copyButton.addEventListener("click", () => copyText(state.prompt || buildPrompt(state.selection)));
 els.generateButton.addEventListener("click", generateImage);
 els.saveButton.addEventListener("click", saveVersion);
+els.mintSetButton.addEventListener("click", generateCurrencySet);
 els.weakButton.addEventListener("click", () => {
   state.weakMode = true;
   state.prompt = "Draw money.";
@@ -660,6 +950,8 @@ els.resetButton.addEventListener("click", () => {
 });
 els.clearVersionsButton.addEventListener("click", () => {
   state.versions = [];
+  state.currencySet = null;
+  renderSetStudio();
   renderVersions();
   persistState();
 });
@@ -668,3 +960,4 @@ restoreState();
 renderBlocks();
 render({ resetPrompt: false });
 renderVersions();
+renderSetStudio();
