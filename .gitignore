@@ -6,6 +6,7 @@ server.pid
 .env
 .env.local
 preview-*.png
+*-check.png
 kksj-*.png
 value-100-fixed.png
 .vercel
