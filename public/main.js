@@ -761,7 +761,7 @@ function renderSetStudio() {
     </div>
     <div class="currency-set-bridge">
       <span>Built from Step 2 Prompt</span>
-      <small>Master note kept, sister notes matched</small>
+      <small>Master note style kept, set badge added</small>
       <pre></pre>
     </div>
     <div class="currency-set-grid"></div>
@@ -1005,14 +1005,12 @@ async function generateCurrencySet() {
 
     const notes = await Promise.all(SET_VALUES.map(async (note) => {
       if (note.value === masterValue) {
-        return {
+        return prepareCurrencySetNote(masterVersion.image, {
           ...note,
-          image: masterVersion.image,
-          ratio: masterVersion.imageRatio || await getImageRatioFromSource(masterVersion.image),
           source: "master",
           versionNumber: masterVersion.number,
           prompt: sourcePrompt,
-        };
+        });
       }
 
       const notePrompt = buildCurrencyNotePrompt(state.selection, sourcePrompt, note, masterValue);
