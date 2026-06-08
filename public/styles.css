@@ -137,6 +137,15 @@ h2 {
 .compare-board {
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.compare-board .panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
 }
 
 .panel-head {
@@ -530,12 +539,11 @@ h2 {
 }
 
 .version-list {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
   display: grid;
   gap: 14px;
   max-height: none;
-  overflow: auto;
+  overflow: visible;
   padding: 16px;
 }
 
