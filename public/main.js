@@ -1,3 +1,34 @@
+const CUSTOM_OPTION_ID = "custom";
+
+const DEFAULT_CUSTOM_VALUES = {
+  value: "",
+  symbol: "",
+  meaning: "",
+  style: "",
+  safety: "",
+  fix: "",
+};
+
+const CUSTOM_OPTION = { id: CUSTOM_OPTION_ID, label: "custom", prompt: "", icon: "ABC" };
+
+const CUSTOM_PROMPT_FALLBACKS = {
+  value: "custom value",
+  symbol: "custom symbol",
+  meaning: "special idea",
+  style: "custom style",
+  safety: "",
+  fix: "",
+};
+
+const CUSTOM_PLACEHOLDERS = {
+  value: "type value, e.g. 50 shells",
+  symbol: "type symbol, e.g. rainbow bridge",
+  meaning: "type meaning, e.g. courage",
+  style: "type style, e.g. watercolor",
+  safety: "type rule, e.g. no scary faces",
+  fix: "type fix, e.g. simple border",
+};
+
 const BLOCKS = {
   value: {
     title: "Value",
@@ -7,6 +38,7 @@ const BLOCKS = {
       { id: "10-shells", label: "10 shells", prompt: "10 shells", icon: "10" },
       { id: "20-shells", label: "20 shells", prompt: "20 shells", icon: "20" },
       { id: "100-shells", label: "100 shells", prompt: "100 shells", icon: "100" },
+      CUSTOM_OPTION,
     ],
   },
   symbol: {
@@ -18,6 +50,7 @@ const BLOCKS = {
       { id: "lighthouse", label: "lighthouse", prompt: "lighthouse", icon: "🗼" },
       { id: "shell", label: "shell", prompt: "shell", icon: "🐚" },
       { id: "star", label: "star", prompt: "star", icon: "⭐" },
+      CUSTOM_OPTION,
     ],
   },
   meaning: {
@@ -29,6 +62,7 @@ const BLOCKS = {
       { id: "trust", label: "trust", prompt: "trust", icon: "🛡️" },
       { id: "hope", label: "hope", prompt: "hope", icon: "☀️" },
       { id: "special", label: "special", prompt: "special", icon: "✨" },
+      CUSTOM_OPTION,
     ],
   },
   style: {
@@ -40,6 +74,7 @@ const BLOCKS = {
       { id: "magical", label: "magical", prompt: "magical", icon: "✨" },
       { id: "clean", label: "clean", prompt: "clean", icon: "🧼" },
       { id: "cartoon", label: "cartoon", prompt: "cartoon", icon: "🎨" },
+      CUSTOM_OPTION,
     ],
   },
   safety: {
@@ -49,6 +84,7 @@ const BLOCKS = {
       { id: "fantasy-only", label: "fantasy only", prompt: "Fantasy only.", icon: "🏝️" },
       { id: "no-real-money", label: "no real money", prompt: "Do not copy real money.", icon: "🚫" },
       { id: "kid-friendly", label: "kid-friendly", prompt: "Kid-friendly.", icon: "🙂" },
+      CUSTOM_OPTION,
     ],
   },
   fix: {
@@ -59,6 +95,7 @@ const BLOCKS = {
       { id: "main-symbol", label: "main symbol", prompt: "Make the symbol large and easy to see.", icon: "👀" },
       { id: "clean-background", label: "clean background", prompt: "Use a clean background with simple layout.", icon: "🧼" },
       { id: "more-island", label: "more island", prompt: "Add ocean waves and island plants.", icon: "🌊" },
+      CUSTOM_OPTION,
     ],
   },
 };
@@ -76,6 +113,7 @@ const STORAGE_KEY = "ai-mint-prompt-builder-state-v1";
 
 const state = {
   selection: structuredClone(DEFAULT_SELECTION),
+  customValues: structuredClone(DEFAULT_CUSTOM_VALUES),
   prompt: "",
   versions: [],
   currencySet: null,
@@ -131,6 +169,19 @@ function selectedList(selection, blockKey) {
   return Array.isArray(value) ? value : [value];
 }
 
+function cleanCustomValue(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function cleanCustomValues(customValues) {
+  return Object.fromEntries(
+    Object.keys(BLOCKS).map((blockKey) => [
+      blockKey,
+      cleanCustomValue(customValues?.[blockKey]),
+    ]),
+  );
+}
+
 function cleanSelection(selection) {
   const next = structuredClone(DEFAULT_SELECTION);
   Object.entries(BLOCKS).forEach(([blockKey, block]) => {
@@ -149,7 +200,15 @@ function cleanSelection(selection) {
 function wordsFrom(selection, blockKey, field = "prompt") {
   return selectedList(selection, blockKey)
     .filter(Boolean)
-    .map((id) => getSelectedOption(blockKey, id)[field]);
+    .map((id) => {
+      if (id === CUSTOM_OPTION_ID) {
+        const custom = cleanCustomValue(state.customValues[blockKey]);
+        if (custom) return custom;
+        return field === "label" ? "custom" : CUSTOM_PROMPT_FALLBACKS[blockKey];
+      }
+      return getSelectedOption(blockKey, id)[field];
+    })
+    .filter(Boolean);
 }
 
 function joinWords(words) {
@@ -322,6 +381,14 @@ function getSelectionLabels(selection) {
   );
 }
 
+function escapeAttribute(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 function renderBlocks() {
   els.blocks.innerHTML = "";
   Object.entries(BLOCKS).forEach(([blockKey, block]) => {
@@ -333,6 +400,18 @@ function renderBlocks() {
         <span class="block-mode">${block.mode === "single" ? "pick one" : "pick many"}</span>
       </div>
       <div class="option-grid"></div>
+      <label class="custom-row" data-custom-row="${blockKey}">
+        <span>Custom word</span>
+        <input
+          type="text"
+          data-custom-block="${blockKey}"
+          maxlength="48"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="${CUSTOM_PLACEHOLDERS[blockKey]}"
+          value="${escapeAttribute(state.customValues[blockKey])}"
+        />
+      </label>
     `;
 
     const grid = section.querySelector(".option-grid");
@@ -353,6 +432,25 @@ function renderBlocks() {
       grid.append(button);
     });
 
+    const input = section.querySelector(`[data-custom-block="${blockKey}"]`);
+    input.addEventListener("focus", () => {
+      if (selectedList(state.selection, blockKey).includes(CUSTOM_OPTION_ID)) return;
+      updateSelection(blockKey, CUSTOM_OPTION_ID);
+      render();
+    });
+    input.addEventListener("input", () => {
+      state.weakMode = false;
+      state.customValues = {
+        ...state.customValues,
+        [blockKey]: input.value,
+      };
+      state.prompt = "";
+      renderSelections();
+      renderPrompt();
+      renderSetStudio();
+      persistState();
+    });
+
     els.blocks.append(section);
   });
 }
@@ -362,6 +460,14 @@ function renderSelections() {
     const blockKey = button.dataset.block;
     const optionId = button.dataset.option;
     button.classList.toggle("is-selected", selectedList(state.selection, blockKey).includes(optionId));
+  });
+  document.querySelectorAll(".custom-row").forEach((row) => {
+    const blockKey = row.dataset.customRow;
+    const input = row.querySelector("input");
+    const isActive = selectedList(state.selection, blockKey).includes(CUSTOM_OPTION_ID);
+    row.classList.toggle("is-active", isActive);
+    input.disabled = !isActive;
+    if (input.value !== state.customValues[blockKey]) input.value = state.customValues[blockKey] || "";
   });
 }
 
@@ -501,6 +607,7 @@ function persistState() {
       STORAGE_KEY,
       JSON.stringify({
         selection: state.selection,
+        customValues: cleanCustomValues(state.customValues),
         prompt: state.prompt,
         weakMode: state.weakMode,
         versions: cleanStoredVersions(state.versions),
@@ -517,6 +624,7 @@ function restoreState() {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
     if (!stored || typeof stored !== "object") return;
     state.selection = cleanSelection(stored.selection);
+    state.customValues = cleanCustomValues(stored.customValues);
     state.prompt = String(stored.prompt || "");
     state.weakMode = Boolean(stored.weakMode);
     state.versions = cleanStoredVersions(stored.versions);
@@ -1119,6 +1227,7 @@ els.weakButton.addEventListener("click", () => {
 });
 els.resetButton.addEventListener("click", () => {
   state.selection = structuredClone(DEFAULT_SELECTION);
+  state.customValues = structuredClone(DEFAULT_CUSTOM_VALUES);
   state.prompt = "";
   state.weakMode = false;
   render();
