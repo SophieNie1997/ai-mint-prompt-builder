@@ -3,7 +3,11 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { buildImageApiRequest, extractImageDataUrl } from "../lib/image-generation.js";
+import {
+  buildImageApiRequest,
+  extractImageDataUrl,
+  imageUrlToDataUrl,
+} from "../lib/image-generation.js";
 
 const publicDir = fileURLToPath(new URL("../public/", import.meta.url));
 const startPort = Number(process.env.PORT || 8787);
@@ -57,6 +61,7 @@ async function handleGenerateImage(req, res) {
       model: process.env.IMAGE_MODEL,
       size: process.env.IMAGE_SIZE,
       quality: process.env.IMAGE_QUALITY,
+      responseFormat: process.env.IMAGE_RESPONSE_FORMAT,
     });
 
     const response = await fetch(url, {
@@ -76,8 +81,10 @@ async function handleGenerateImage(req, res) {
       return;
     }
 
+    const imageDataUrl = await imageUrlToDataUrl(extractImageDataUrl(data));
+
     sendJson(res, 200, {
-      imageDataUrl: extractImageDataUrl(data),
+      imageDataUrl,
       model: body.model,
     });
   } catch (error) {

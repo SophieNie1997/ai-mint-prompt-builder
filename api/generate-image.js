@@ -1,4 +1,8 @@
-import { buildImageApiRequest, extractImageDataUrl } from "../lib/image-generation.js";
+import {
+  buildImageApiRequest,
+  extractImageDataUrl,
+  imageUrlToDataUrl,
+} from "../lib/image-generation.js";
 
 const defaultBaseUrl = "https://api.kksj.org/v1";
 
@@ -39,6 +43,7 @@ export default async function handler(req, res) {
       model: process.env.IMAGE_MODEL,
       size: process.env.IMAGE_SIZE,
       quality: process.env.IMAGE_QUALITY,
+      responseFormat: process.env.IMAGE_RESPONSE_FORMAT,
     });
 
     const response = await fetch(url, {
@@ -58,8 +63,10 @@ export default async function handler(req, res) {
       return;
     }
 
+    const imageDataUrl = await imageUrlToDataUrl(extractImageDataUrl(data));
+
     send(res, 200, {
-      imageDataUrl: extractImageDataUrl(data),
+      imageDataUrl,
       model: body.model,
     });
   } catch (error) {
