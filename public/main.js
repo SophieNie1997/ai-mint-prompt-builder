@@ -381,12 +381,16 @@ function completedVersionCount() {
   return state.versions.filter((version) => !version.pending && version.source !== "failed").length;
 }
 
+function isCanvasSafeImageSource(src) {
+  return typeof src === "string" && src.startsWith("data:image/");
+}
+
 function findGeneratedVersionForPrompt(prompt) {
   const cleanPrompt = String(prompt || "").trim();
   return state.versions.find((version) => (
     version
     && version.source === "generated"
-    && version.image
+    && isCanvasSafeImageSource(version.image)
     && !version.pending
     && String(version.prompt || "").trim() === cleanPrompt
   ));
