@@ -605,56 +605,32 @@ function drawCurrencyNote(ctx, note, baseImage, labels) {
   ctx.fillRect(0, 0, width, height);
   drawImageCover(ctx, baseImage, width, height);
 
-  ctx.fillStyle = "rgba(255, 255, 255, 0.58)";
-  ctx.fillRect(0, 0, width, height);
-  ctx.fillStyle = withAlpha(note.accent, 0.24);
-  ctx.fillRect(0, 0, width, height);
-  ctx.fillStyle = withAlpha(note.accent, 0.9);
-  ctx.fillRect(0, 0, width, 34);
-  ctx.fillRect(0, height - 34, width, 34);
-
+  ctx.strokeStyle = withAlpha(note.accent, 0.92);
+  ctx.lineWidth = Math.max(8, Math.round(width * 0.014));
+  ctx.strokeRect(16, 16, width - 32, height - 32);
   ctx.strokeStyle = "#8c4019";
-  ctx.lineWidth = 12;
-  ctx.strokeRect(22, 22, width - 44, height - 44);
-  ctx.lineWidth = 4;
-  ctx.strokeRect(54, 58, width - 108, height - 116);
-  drawShellDots(ctx, width, height, withAlpha(note.accent, 0.95));
+  ctx.lineWidth = Math.max(3, Math.round(width * 0.005));
+  ctx.strokeRect(28, 28, width - 56, height - 56);
 
-  ctx.fillStyle = "#8c4019";
-  ctx.font = "900 34px Arial Rounded MT Bold, Arial, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("LUMI ISLAND", width / 2, 88);
-  ctx.font = "800 18px Arial Rounded MT Bold, Arial, sans-serif";
-  ctx.fillText("FANTASY CURRENCY", width / 2, 114);
+  const badgeHeight = Math.max(56, Math.min(92, Math.round(height * 0.16)));
+  const badgeWidth = Math.max(190, Math.min(width - 64, Math.round(width * 0.42 + String(note.value).length * 18)));
+  const badgeX = width / 2 - badgeWidth / 2;
+  const badgeY = height - badgeHeight - Math.max(22, Math.round(height * 0.045));
 
-  ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
-  ctx.strokeStyle = "#8c4019";
-  ctx.lineWidth = 4;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.86)";
   ctx.beginPath();
-  ctx.roundRect(width / 2 - 152, height / 2 - 100, 304, 178, 18);
+  ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 18);
   ctx.fill();
+  ctx.strokeStyle = withAlpha(note.accent, 0.95);
+  ctx.lineWidth = 5;
   ctx.stroke();
 
   ctx.fillStyle = "#241f1b";
-  ctx.font = "950 112px Arial Rounded MT Bold, Arial, sans-serif";
-  ctx.fillText(String(note.value), width / 2, height / 2 + 10);
-  ctx.font = "900 34px Arial Rounded MT Bold, Arial, sans-serif";
-  ctx.fillText("SHELLS", width / 2, height / 2 + 58);
-
-  const symbol = labels.symbol || "island";
-  const meaning = labels.meaning || "trade";
-  ctx.fillStyle = withAlpha(note.accent, 0.86);
-  ctx.beginPath();
-  ctx.arc(100, height / 2, 50, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(width - 100, height / 2, 50, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#8c4019";
-  ctx.font = `900 ${symbol.length > 7 ? 16 : 22}px Arial Rounded MT Bold, Arial, sans-serif`;
-  ctx.fillText(symbol.toUpperCase(), 100, height / 2 - 2);
-  ctx.font = `850 ${meaning.length > 7 ? 15 : 18}px Arial Rounded MT Bold, Arial, sans-serif`;
-  ctx.fillText(meaning.toUpperCase(), width - 100, height / 2 - 2);
+  ctx.textAlign = "center";
+  ctx.font = `950 ${Math.round(badgeHeight * 0.58)}px Arial Rounded MT Bold, Arial, sans-serif`;
+  ctx.fillText(String(note.value), width / 2, badgeY + Math.round(badgeHeight * 0.55));
+  ctx.font = `900 ${Math.round(badgeHeight * 0.2)}px Arial Rounded MT Bold, Arial, sans-serif`;
+  ctx.fillText("SHELLS", width / 2, badgeY + Math.round(badgeHeight * 0.82));
 }
 
 async function composeCurrencyNotes(baseImageDataUrl, labels) {
