@@ -117,9 +117,12 @@ const state = {
   prompt: "",
   versions: [],
   currencySet: null,
+  studentName: "",
+  posterImage: "",
   weakMode: false,
   isGenerating: false,
   isGeneratingSet: false,
+  isMakingPoster: false,
 };
 
 const GENERATION_MESSAGES = [
@@ -152,8 +155,14 @@ const els = {
   weakButton: document.querySelector("#weakButton"),
   clearVersionsButton: document.querySelector("#clearVersionsButton"),
   mintSetButton: document.querySelector("#mintSetButton"),
+  makePosterButton: document.querySelector("#makePosterButton"),
+  downloadPosterButton: document.querySelector("#downloadPosterButton"),
+  printPosterButton: document.querySelector("#printPosterButton"),
+  studentName: document.querySelector("#studentName"),
   setStatus: document.querySelector("#setStatus"),
   setLab: document.querySelector("#setLab"),
+  posterStatus: document.querySelector("#posterStatus"),
+  posterLab: document.querySelector("#posterLab"),
   versionList: document.querySelector("#versionList"),
   versionTemplate: document.querySelector("#versionTemplate"),
 };
@@ -610,6 +619,7 @@ function persistState() {
         customValues: cleanCustomValues(state.customValues),
         prompt: state.prompt,
         weakMode: state.weakMode,
+        studentName: state.studentName,
         versions: cleanStoredVersions(state.versions),
         currencySet: cleanStoredCurrencySet(state.currencySet),
       }),
@@ -627,6 +637,7 @@ function restoreState() {
     state.customValues = cleanCustomValues(stored.customValues);
     state.prompt = String(stored.prompt || "");
     state.weakMode = Boolean(stored.weakMode);
+    state.studentName = String(stored.studentName || "");
     state.versions = cleanStoredVersions(stored.versions);
     state.currencySet = cleanStoredCurrencySet(stored.currencySet);
   } catch {
@@ -929,6 +940,357 @@ function renderSetStudio() {
   els.setLab.append(card);
 }
 
+function posterImageVersions() {
+  return state.versions
+    .filter((version) => (
+      version
+      && !version.pending
+      && version.source !== "failed"
+      && isCanvasSafeImageSource(version.image)
+    ))
+    .sort((a, b) => Number(a.number) - Number(b.number));
+}
+
+function hasPosterInputs() {
+  return posterImageVersions().length > 0 || Boolean(state.currencySet?.notes?.length);
+}
+
+function posterLabels() {
+  const finalVersion = posterImageVersions().at(-1);
+  return state.currencySet?.labels
+    || finalVersion?.labels
+    || labelsForCurrentPrompt()
+    || getSelectionLabels(state.selection);
+}
+
+function posterRecipeChips(labels) {
+  return ["value", "symbol", "meaning", "style", "safety", "fix"]
+    .map((key) => labels?.[key])
+    .filter(Boolean);
+}
+
+function describePromptChange(previous, current, index) {
+  if (!previous) return index === 0 ? "First try" : "New idea";
+  const order = ["value", "symbol", "meaning", "style", "fix", "safety"];
+  const changed = order.find((key) => previous.labels?.[key] !== current.labels?.[key] && current.labels?.[key]);
+  if (!changed) return "Prompt improved";
+  if (changed === "fix") return "Added a fix";
+  return `Changed ${changed}`;
+}
+
+function posterJourneySteps() {
+  const versions = posterImageVersions();
+  if (versions.length <= 3) return versions;
+  return [versions[0], versions.at(-2), versions.at(-1)];
+}
+
+function wrapCanvasText(ctx, text, maxWidth) {
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = "";
+  words.forEach((word) => {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  });
+  if (line) lines.push(line);
+  return lines;
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 4) {
+  const lines = wrapCanvasText(ctx, text, maxWidth).slice(0, maxLines);
+  lines.forEach((line, index) => {
+    ctx.fillText(line, x, y + index * lineHeight);
+  });
+  return y + lines.length * lineHeight;
+}
+
+function drawPosterBox(ctx, x, y, width, height, fill = "#ffffff", stroke = "#8c4019", lineWidth = 6) {
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, 10);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawPosterChip(ctx, label, x, y, maxWidth = 320) {
+  ctx.font = "900 28px Arial Rounded MT Bold, Arial, sans-serif";
+  const width = Math.min(maxWidth, Math.max(124, ctx.measureText(label).width + 42));
+  drawPosterBox(ctx, x, y, width, 54, "#fff8ca", "#8c4019", 4);
+  ctx.fillStyle = "#8c4019";
+  ctx.textAlign = "center";
+  ctx.fillText(label, x + width / 2, y + 36);
+  return width;
+}
+
+function drawPosterImage(ctx, image, x, y, width, height, fill = "#fffaf0") {
+  drawPosterBox(ctx, x, y, width, height, fill, "#8c4019", 6);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x + 16, y + 16, width - 32, height - 32);
+  ctx.clip();
+  ctx.translate(x + 16, y + 16);
+  drawImageContain(ctx, image, width - 32, height - 32, 0);
+  ctx.restore();
+}
+
+async function drawJourneySection(ctx, steps, x, y, width) {
+  ctx.fillStyle = "#8c4019";
+  ctx.font = "950 46px Arial Rounded MT Bold, Arial, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Prompt Journey", x, y);
+
+  const cardGap = 30;
+  const cardWidth = Math.floor((width - cardGap * 2) / 3);
+  const cardHeight = 390;
+  const labels = ["First Try", "Better Prompt", "Final Image"];
+
+  for (let index = 0; index < 3; index += 1) {
+    const version = steps[index] || steps.at(-1);
+    const left = x + index * (cardWidth + cardGap);
+    drawPosterBox(ctx, left, y + 58, cardWidth, cardHeight, index === 0 ? "#ffe5e5" : index === 1 ? "#dff4ff" : "#e6f7d9");
+    ctx.fillStyle = "#8c4019";
+    ctx.font = "950 30px Arial Rounded MT Bold, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(labels[index], left + cardWidth / 2, y + 102);
+
+    if (version?.image) {
+      const image = await loadCanvasImage(version.image);
+      drawPosterImage(ctx, image, left + 26, y + 124, cardWidth - 52, 210, "#ffffff");
+      ctx.fillStyle = "#8c4019";
+      ctx.font = "900 24px Arial Rounded MT Bold, Arial, sans-serif";
+      ctx.textAlign = "center";
+      const note = describePromptChange(steps[index - 1], version, index);
+      ctx.fillText(note, left + cardWidth / 2, y + 368);
+      ctx.font = "850 20px Arial, sans-serif";
+      drawWrappedText(ctx, version.labels?.style || version.labels?.symbol || version.prompt, left + cardWidth / 2, y + 402, cardWidth - 60, 24, 2);
+    } else {
+      ctx.fillStyle = "#8c4019";
+      ctx.font = "900 25px Arial Rounded MT Bold, Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Add one more image", left + cardWidth / 2, y + 236);
+    }
+  }
+}
+
+async function drawFinalSetSection(ctx, x, y, width, labels) {
+  ctx.fillStyle = "#8c4019";
+  ctx.font = "950 46px Arial Rounded MT Bold, Arial, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Final Money", x, y);
+
+  const setBoxWidth = Math.floor(width * 0.58);
+  const recipeX = x + setBoxWidth + 34;
+  drawPosterBox(ctx, x, y + 58, setBoxWidth, 560, "#ffffff");
+
+  if (state.currencySet?.notes?.length) {
+    const gap = 22;
+    const noteW = Math.floor((setBoxWidth - 72 - gap) / 2);
+    const noteH = 206;
+    for (let index = 0; index < state.currencySet.notes.length; index += 1) {
+      const note = state.currencySet.notes[index];
+      const col = index % 2;
+      const row = Math.floor(index / 2);
+      const noteX = x + 28 + col * (noteW + gap);
+      const noteY = y + 88 + row * (noteH + 58);
+      const linkedVersion = note.versionNumber ? findVersionByNumber(note.versionNumber) : null;
+      const image = await loadCanvasImage(note.image || linkedVersion?.image || "");
+      drawPosterImage(ctx, image, noteX, noteY, noteW, noteH, "#fff8ca");
+      ctx.fillStyle = "#8c4019";
+      ctx.font = "950 27px Arial Rounded MT Bold, Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(note.label, noteX + noteW / 2, noteY + noteH + 36);
+    }
+  } else {
+    const finalVersion = posterImageVersions().at(-1);
+    const image = await loadCanvasImage(finalVersion?.image || "");
+    drawPosterImage(ctx, image, x + 44, y + 100, setBoxWidth - 88, 396, "#fff8ca");
+    ctx.fillStyle = "#8c4019";
+    ctx.font = "950 30px Arial Rounded MT Bold, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Final Image", x + setBoxWidth / 2, y + 548);
+  }
+
+  drawPosterBox(ctx, recipeX, y + 58, width - setBoxWidth - 34, 560, "#fff8ca");
+  ctx.fillStyle = "#8c4019";
+  ctx.font = "950 34px Arial Rounded MT Bold, Arial, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Prompt Recipe", recipeX + 36, y + 112);
+  let chipX = recipeX + 36;
+  let chipY = y + 154;
+  posterRecipeChips(labels).slice(0, 7).forEach((chip) => {
+    const chipWidth = Math.min(width - setBoxWidth - 108, Math.max(142, chip.length * 18 + 46));
+    if (chipX + chipWidth > x + width - 30) {
+      chipX = recipeX + 36;
+      chipY += 68;
+    }
+    drawPosterChip(ctx, chip, chipX, chipY, chipWidth);
+    chipX += chipWidth + 16;
+  });
+
+  ctx.fillStyle = "#c00000";
+  ctx.font = "950 31px Arial Rounded MT Bold, Arial, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Today I Learned", recipeX + 36, y + 428);
+  ctx.fillStyle = "#241f1b";
+  ctx.font = "900 28px Arial Rounded MT Bold, Arial, sans-serif";
+  drawWrappedText(ctx, "Clear words help AI create better pictures.", recipeX + 36, y + 472, width - setBoxWidth - 108, 38, 3);
+}
+
+async function composePosterImage() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1600;
+  canvas.height = 2263;
+  const ctx = canvas.getContext("2d");
+  const labels = posterLabels();
+  const designer = cleanCustomValue(state.studentName) || "Junior AI Mint Designer";
+
+  ctx.fillStyle = "#faf6f3";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#ff7a1a";
+  ctx.fillRect(0, 0, canvas.width, 34);
+  ctx.fillStyle = "#0fb2ee";
+  ctx.fillRect(0, canvas.height - 34, canvas.width, 34);
+  ctx.strokeStyle = "#8c4019";
+  ctx.lineWidth = 12;
+  ctx.strokeRect(48, 56, canvas.width - 96, canvas.height - 112);
+
+  ctx.fillStyle = "#8c4019";
+  ctx.textAlign = "center";
+  ctx.font = "950 82px Arial Rounded MT Bold, Arial, sans-serif";
+  ctx.fillText("MY AI MINT POSTER", canvas.width / 2, 166);
+  ctx.font = "900 34px Arial Rounded MT Bold, Arial, sans-serif";
+  ctx.fillText(designer, canvas.width / 2, 220);
+
+  drawPosterBox(ctx, 270, 256, 1060, 72, "#fff8ca", "#8c4019", 5);
+  ctx.fillStyle = "#8c4019";
+  ctx.font = "950 34px Arial Rounded MT Bold, Arial, sans-serif";
+  ctx.fillText("Better prompt  →  better image", canvas.width / 2, 303);
+
+  await drawJourneySection(ctx, posterJourneySteps(), 112, 420, 1376);
+  await drawFinalSetSection(ctx, 112, 982, 1376, labels);
+
+  drawPosterBox(ctx, 112, 1710, 1376, 320, "#dff4ff", "#8c4019", 6);
+  ctx.fillStyle = "#8c4019";
+  ctx.textAlign = "left";
+  ctx.font = "950 44px Arial Rounded MT Bold, Arial, sans-serif";
+  ctx.fillText("My Design Sentence", 164, 1772);
+  ctx.fillStyle = "#241f1b";
+  ctx.font = "900 32px Arial Rounded MT Bold, Arial, sans-serif";
+  const sentence = `My island money uses ${labels.symbol || "a symbol"} to show ${labels.meaning || "an idea"}.`;
+  drawWrappedText(ctx, sentence, 164, 1830, 1268, 46, 3);
+  ctx.fillStyle = "#8c4019";
+  ctx.font = "900 28px Arial Rounded MT Bold, Arial, sans-serif";
+  drawWrappedText(ctx, "I tested prompts, compared images, and improved my design.", 164, 1950, 1268, 38, 2);
+
+  ctx.fillStyle = "#8c4019";
+  ctx.textAlign = "center";
+  ctx.font = "900 24px Arial Rounded MT Bold, Arial, sans-serif";
+  ctx.fillText("Lumi Finance AI · Lesson 6 · AI Mint Studio", canvas.width / 2, 2138);
+
+  return canvas.toDataURL("image/png");
+}
+
+function renderPosterStudio() {
+  if (els.studentName && els.studentName.value !== state.studentName) {
+    els.studentName.value = state.studentName || "";
+  }
+
+  const ready = hasPosterInputs();
+  els.makePosterButton.disabled = !ready || state.isMakingPoster;
+  els.makePosterButton.textContent = state.isMakingPoster ? "MAKING..." : "MAKE POSTER";
+  els.downloadPosterButton.disabled = !state.posterImage;
+  els.printPosterButton.disabled = !state.posterImage;
+
+  if (state.isMakingPoster) {
+    els.posterStatus.textContent = "Arranging images, prompt blocks, and final money...";
+  } else if (state.posterImage) {
+    els.posterStatus.textContent = "Poster ready. Download or print it for take-home sharing.";
+  } else if (ready) {
+    const imageCount = posterImageVersions().length;
+    els.posterStatus.textContent = state.currencySet
+      ? "Ready to make a poster with the money set."
+      : `Ready to make a poster with ${imageCount} image${imageCount === 1 ? "" : "s"}.`;
+  } else {
+    els.posterStatus.textContent = "Generate one image to unlock.";
+  }
+
+  els.posterLab.innerHTML = "";
+  if (!state.posterImage) return;
+  const image = document.createElement("img");
+  image.src = state.posterImage;
+  image.alt = "AI Mint Studio take-home poster";
+  els.posterLab.append(image);
+}
+
+async function makePoster() {
+  if (!hasPosterInputs() || state.isMakingPoster) {
+    showToast("Generate one image first");
+    return;
+  }
+  state.isMakingPoster = true;
+  renderPosterStudio();
+  try {
+    state.posterImage = await composePosterImage();
+    showToast("Poster ready");
+  } catch {
+    state.posterImage = "";
+    showToast("Poster not made");
+    els.posterStatus.textContent = "Poster could not be made. Try again after images finish loading.";
+  } finally {
+    state.isMakingPoster = false;
+    renderPosterStudio();
+  }
+}
+
+async function downloadPoster() {
+  if (!state.posterImage) await makePoster();
+  if (!state.posterImage) return;
+  const link = document.createElement("a");
+  const name = cleanCustomValue(state.studentName) || "ai-mint-poster";
+  link.href = state.posterImage;
+  link.download = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "ai-mint-poster"}.png`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  showToast("Poster downloaded");
+}
+
+async function printPoster() {
+  if (!state.posterImage) await makePoster();
+  if (!state.posterImage) return;
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    showToast("Download poster instead");
+    return;
+  }
+  printWindow.document.write(`
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <title>AI Mint Poster</title>
+        <style>
+          body { margin: 0; background: #faf6f3; display: grid; min-height: 100vh; place-items: center; }
+          img { width: min(100vw, 900px); height: auto; display: block; }
+          @media print {
+            body { background: white; }
+            img { width: 100%; }
+          }
+        </style>
+      </head>
+      <body><img src="${state.posterImage}" alt="AI Mint Studio poster" /></body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.addEventListener("load", () => printWindow.print(), { once: true });
+}
+
 function renderVersions() {
   els.versionList.innerHTML = "";
   if (!state.versions.length) {
@@ -1015,6 +1377,7 @@ function buildCurrentPrompt() {
 
 function saveVersion() {
   if (!state.prompt) buildCurrentPrompt();
+  state.posterImage = "";
   state.versions.unshift({
     number: state.versions.length + 1,
     prompt: state.prompt,
@@ -1023,6 +1386,7 @@ function saveVersion() {
     source: "manual",
   });
   renderSetStudio();
+  renderPosterStudio();
   renderVersions();
   persistState();
   showToast(`Version ${state.versions.length} saved`);
@@ -1046,8 +1410,10 @@ async function generateImage() {
     source: "pending",
     pending: true,
   };
+  state.posterImage = "";
   state.versions.unshift(pendingVersion);
   renderSetStudio();
+  renderPosterStudio();
   renderVersions();
 
   state.isGenerating = true;
@@ -1073,6 +1439,7 @@ async function generateImage() {
     pendingVersion.source = "generated";
     pendingVersion.pending = false;
     renderSetStudio();
+    renderPosterStudio();
     renderVersions();
     setGenerationStatus(`Image saved as AI Image ${pendingVersion.number}.`);
     persistState();
@@ -1083,6 +1450,7 @@ async function generateImage() {
     pendingVersion.pending = false;
     pendingVersion.error = message;
     renderSetStudio();
+    renderPosterStudio();
     renderVersions();
     setGenerationStatus(message);
     persistState();
@@ -1116,8 +1484,10 @@ async function generateCurrencySet() {
   const masterValue = selectedValueNumber(state.selection);
   const labels = getSelectionLabels(state.selection);
   let masterVersion = findGeneratedVersionForPrompt(sourcePrompt);
+  state.posterImage = "";
   state.isGeneratingSet = true;
   renderSetStudio();
+  renderPosterStudio();
   startGenerationMessages();
 
   try {
@@ -1144,6 +1514,7 @@ async function generateCurrencySet() {
         source: "generated",
       };
       state.versions.unshift(masterVersion);
+      renderPosterStudio();
       renderVersions();
     }
 
@@ -1186,6 +1557,7 @@ async function generateCurrencySet() {
     els.setStatus.textContent = `Full set ready from AI Image ${masterVersion.number}.`;
     setGenerationStatus(`Full money set built from master AI Image ${masterVersion.number}.`);
     persistState();
+    renderPosterStudio();
     showToast("Full money set ready");
   } catch (error) {
     const message = error.message || "Full set generation failed.";
@@ -1196,6 +1568,7 @@ async function generateCurrencySet() {
     stopGenerationMessages();
     state.isGeneratingSet = false;
     renderSetStudio();
+    renderPosterStudio();
   }
 }
 
@@ -1205,6 +1578,7 @@ function render({ resetPrompt = true } = {}) {
   renderPrompt();
   if (resetPrompt) setGenerationStatus("Build a prompt, then generate in class.");
   renderSetStudio();
+  renderPosterStudio();
   persistState();
 }
 
@@ -1217,6 +1591,15 @@ els.copyButton.addEventListener("click", () => copyText(state.prompt || buildPro
 els.generateButton.addEventListener("click", generateImage);
 els.saveButton.addEventListener("click", saveVersion);
 els.mintSetButton.addEventListener("click", generateCurrencySet);
+els.makePosterButton.addEventListener("click", makePoster);
+els.downloadPosterButton.addEventListener("click", downloadPoster);
+els.printPosterButton.addEventListener("click", printPoster);
+els.studentName.addEventListener("input", () => {
+  state.studentName = els.studentName.value;
+  state.posterImage = "";
+  renderPosterStudio();
+  persistState();
+});
 els.weakButton.addEventListener("click", () => {
   state.weakMode = true;
   state.prompt = "Draw money.";
@@ -1235,7 +1618,9 @@ els.resetButton.addEventListener("click", () => {
 els.clearVersionsButton.addEventListener("click", () => {
   state.versions = [];
   state.currencySet = null;
+  state.posterImage = "";
   renderSetStudio();
+  renderPosterStudio();
   renderVersions();
   persistState();
 });
@@ -1245,3 +1630,4 @@ renderBlocks();
 render({ resetPrompt: false });
 renderVersions();
 renderSetStudio();
+renderPosterStudio();
