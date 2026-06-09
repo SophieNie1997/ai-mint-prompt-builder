@@ -73,45 +73,62 @@
         <section class="compare-board" aria-labelledby="compare-title">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Step 3</p>
-              <h2 id="compare-title">Image Lab</h2>
+              <p class="eyebrow">Output</p>
+              <h2 id="compare-title">Output Lab</h2>
             </div>
             <button class="ghost-button" id="clearVersionsButton" type="button">Clear</button>
           </div>
 
-          <div class="set-studio" aria-label="Final money set studio">
-            <div class="set-head">
-              <div>
-                <p class="eyebrow">Final Set</p>
-                <h3>Money Set</h3>
-              </div>
-              <button class="set-button" id="mintSetButton" type="button">MINT FULL SET</button>
-            </div>
-            <p class="set-status" id="setStatus">Save 2 versions to unlock.</p>
-            <div class="set-lab" id="setLab"></div>
+          <div class="output-tabs" role="tablist" aria-label="Output Lab steps">
+            <button class="output-tab is-active" id="imagesTabButton" type="button" role="tab" aria-selected="true" aria-controls="imagesPanel" data-output-tab="images">
+              <span>Step 3</span>
+              <strong>Images</strong>
+              <em id="imagesTabBadge">Lab</em>
+            </button>
+            <button class="output-tab" id="posterTabButton" type="button" role="tab" aria-selected="false" aria-controls="posterPanel" data-output-tab="poster">
+              <span>Step 4</span>
+              <strong>Poster</strong>
+              <em id="posterTabBadge">Locked</em>
+            </button>
           </div>
 
-          <div class="poster-studio" aria-label="Take-home poster studio">
-            <div class="poster-head">
-              <div>
-                <p class="eyebrow">Step 4</p>
-                <h3>My Mint Poster</h3>
+          <div class="output-panel is-active" id="imagesPanel" role="tabpanel" aria-labelledby="imagesTabButton" data-output-panel="images">
+            <div class="set-studio" aria-label="Final money set studio">
+              <div class="set-head">
+                <div>
+                  <p class="eyebrow">Final Set</p>
+                  <h3>Money Set</h3>
+                </div>
+                <button class="set-button" id="mintSetButton" type="button">MINT FULL SET</button>
               </div>
-              <button class="poster-button" id="makePosterButton" type="button">MAKE POSTER</button>
+              <p class="set-status" id="setStatus">Save 2 versions to unlock.</p>
+              <div class="set-lab" id="setLab"></div>
             </div>
-            <label class="poster-name">
-              <span>Designer</span>
-              <input id="studentName" type="text" maxlength="32" autocomplete="off" spellcheck="false" placeholder="student name" />
-            </label>
-            <p class="poster-status" id="posterStatus">Generate one image to unlock.</p>
-            <div class="poster-lab" id="posterLab"></div>
-            <div class="poster-actions">
-              <button class="poster-download" id="downloadPosterButton" type="button" disabled>DOWNLOAD</button>
-              <button class="poster-print" id="printPosterButton" type="button" disabled>PRINT</button>
-            </div>
+
+            <div class="version-list" id="versionList"></div>
           </div>
 
-          <div class="version-list" id="versionList"></div>
+          <div class="output-panel" id="posterPanel" role="tabpanel" aria-labelledby="posterTabButton" data-output-panel="poster" hidden>
+            <div class="poster-studio" aria-label="Take-home poster studio">
+              <div class="poster-head">
+                <div>
+                  <p class="eyebrow">Take Home</p>
+                  <h3>My Mint Poster</h3>
+                </div>
+                <button class="poster-button" id="makePosterButton" type="button">MAKE POSTER</button>
+              </div>
+              <label class="poster-name">
+                <span>Designer</span>
+                <input id="studentName" type="text" maxlength="32" autocomplete="off" spellcheck="false" placeholder="student name" />
+              </label>
+              <p class="poster-status" id="posterStatus">Generate one image to unlock.</p>
+              <div class="poster-lab" id="posterLab"></div>
+              <div class="poster-actions">
+                <button class="poster-download" id="downloadPosterButton" type="button" disabled>DOWNLOAD</button>
+                <button class="poster-print" id="printPosterButton" type="button" disabled>PRINT</button>
+              </div>
+            </div>
+          </div>
         </section>
       </section>
     </main>

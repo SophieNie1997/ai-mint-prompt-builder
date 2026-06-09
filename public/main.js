@@ -123,6 +123,7 @@ const state = {
   isGenerating: false,
   isGeneratingSet: false,
   isMakingPoster: false,
+  outputTab: "images",
 };
 
 const GENERATION_MESSAGES = [
@@ -165,6 +166,10 @@ const els = {
   posterLab: document.querySelector("#posterLab"),
   versionList: document.querySelector("#versionList"),
   versionTemplate: document.querySelector("#versionTemplate"),
+  outputTabButtons: document.querySelectorAll("[data-output-tab]"),
+  outputPanels: document.querySelectorAll("[data-output-panel]"),
+  imagesTabBadge: document.querySelector("#imagesTabBadge"),
+  posterTabBadge: document.querySelector("#posterTabBadge"),
 };
 
 function getSelectedOption(blockKey, optionId) {
@@ -204,6 +209,10 @@ function cleanSelection(selection) {
     }
   });
   return next;
+}
+
+function cleanOutputTab(tab) {
+  return tab === "poster" ? "poster" : "images";
 }
 
 function wordsFrom(selection, blockKey, field = "prompt") {
@@ -620,6 +629,7 @@ function persistState() {
         prompt: state.prompt,
         weakMode: state.weakMode,
         studentName: state.studentName,
+        outputTab: state.outputTab,
         versions: cleanStoredVersions(state.versions),
         currencySet: cleanStoredCurrencySet(state.currencySet),
       }),
@@ -638,6 +648,7 @@ function restoreState() {
     state.prompt = String(stored.prompt || "");
     state.weakMode = Boolean(stored.weakMode);
     state.studentName = String(stored.studentName || "");
+    state.outputTab = cleanOutputTab(stored.outputTab);
     state.versions = cleanStoredVersions(stored.versions);
     state.currencySet = cleanStoredCurrencySet(stored.currencySet);
   } catch {
@@ -705,6 +716,7 @@ function attachDropHandlers(card, version) {
     img.src = version.image;
     drop.classList.add("has-image");
     drop.classList.remove("is-over");
+    renderPosterStudio();
     persistState();
   }
 
@@ -905,6 +917,7 @@ function renderSetStudio() {
   }
 
   els.setLab.innerHTML = "";
+  renderOutputTabs();
   if (!state.currencySet) return;
 
   const card = document.createElement("article");
@@ -938,6 +951,7 @@ function renderSetStudio() {
     grid.append(noteCard);
   });
   els.setLab.append(card);
+  renderOutputTabs();
 }
 
 function posterImageVersions() {
@@ -953,6 +967,37 @@ function posterImageVersions() {
 
 function hasPosterInputs() {
   return posterImageVersions().length > 0 || Boolean(state.currencySet?.notes?.length);
+}
+
+function renderOutputTabs() {
+  els.outputTabButtons.forEach((button) => {
+    const active = button.dataset.outputTab === state.outputTab;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+    button.tabIndex = active ? 0 : -1;
+  });
+
+  els.outputPanels.forEach((panel) => {
+    const active = panel.dataset.outputPanel === state.outputTab;
+    panel.classList.toggle("is-active", active);
+    panel.hidden = !active;
+  });
+
+  const completedCount = completedVersionCount();
+  els.imagesTabBadge.textContent = completedCount ? `${completedCount} saved` : "Lab";
+  if (state.posterImage) {
+    els.posterTabBadge.textContent = "Done";
+  } else if (hasPosterInputs()) {
+    els.posterTabBadge.textContent = "Ready";
+  } else {
+    els.posterTabBadge.textContent = "Locked";
+  }
+}
+
+function switchOutputTab(tab) {
+  state.outputTab = cleanOutputTab(tab);
+  renderOutputTabs();
+  persistState();
 }
 
 function posterLabels() {
@@ -1238,11 +1283,13 @@ function renderPosterStudio() {
   }
 
   els.posterLab.innerHTML = "";
+  renderOutputTabs();
   if (!state.posterImage) return;
   const image = document.createElement("img");
   image.src = state.posterImage;
   image.alt = "AI Mint Studio take-home poster";
   els.posterLab.append(image);
+  renderOutputTabs();
 }
 
 async function makePoster() {
@@ -1250,6 +1297,7 @@ async function makePoster() {
     showToast("Generate one image first");
     return;
   }
+  state.outputTab = "poster";
   state.isMakingPoster = true;
   renderPosterStudio();
   try {
@@ -1610,6 +1658,9 @@ els.mintSetButton.addEventListener("click", generateCurrencySet);
 els.makePosterButton.addEventListener("click", makePoster);
 els.downloadPosterButton.addEventListener("click", downloadPoster);
 els.printPosterButton.addEventListener("click", printPoster);
+els.outputTabButtons.forEach((button) => {
+  button.addEventListener("click", () => switchOutputTab(button.dataset.outputTab));
+});
 els.studentName.addEventListener("input", () => {
   state.studentName = els.studentName.value;
   state.posterImage = "";
@@ -1635,6 +1686,7 @@ els.clearVersionsButton.addEventListener("click", () => {
   state.versions = [];
   state.currencySet = null;
   state.posterImage = "";
+  state.outputTab = "images";
   renderSetStudio();
   renderPosterStudio();
   renderVersions();
