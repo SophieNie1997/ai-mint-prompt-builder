@@ -167,7 +167,6 @@ const els = {
   buildButton: document.querySelector("#buildButton"),
   generateButton: document.querySelector("#generateButton"),
   copyButton: document.querySelector("#copyButton"),
-  saveButton: document.querySelector("#saveButton"),
   generationStatus: document.querySelector("#generationStatus"),
   resetButton: document.querySelector("#resetButton"),
   weakButton: document.querySelector("#weakButton"),
@@ -577,7 +576,11 @@ function labelsForCurrentPrompt() {
 }
 
 function completedVersionCount() {
-  return state.versions.filter((version) => !version.pending && version.source !== "failed").length;
+  return state.versions.filter((version) => (
+    !version.pending
+    && version.source === "generated"
+    && isCanvasSafeImageSource(version.image)
+  )).length;
 }
 
 function isCanvasSafeImageSource(src) {
@@ -603,6 +606,7 @@ function cleanStoredVersions(versions) {
   if (!Array.isArray(versions)) return [];
   return versions
     .filter((version) => version && !version.pending && version.source !== "pending")
+    .filter((version) => version.source === "failed" || (version.source === "generated" && isCanvasSafeImageSource(version.image)))
     .slice(0, 12)
     .map((version, index, list) => ({
       number: Number(version.number) || list.length - index,
@@ -610,7 +614,7 @@ function cleanStoredVersions(versions) {
       labels: version.labels && typeof version.labels === "object" ? { ...version.labels } : {},
       image: String(version.image || ""),
       imageRatio: Number.isFinite(Number(version.imageRatio)) ? Number(version.imageRatio) : 1,
-      source: ["generated", "manual", "failed"].includes(version.source) ? version.source : "manual",
+      source: version.source === "failed" ? "failed" : "generated",
       error: version.error ? String(version.error) : "",
     }));
 }
@@ -797,15 +801,6 @@ function versionChips(version) {
     .join("");
 }
 
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () => resolve(reader.result));
-    reader.addEventListener("error", () => reject(reader.error));
-    reader.readAsDataURL(file);
-  });
-}
-
 function clampImageRatio(ratio) {
   if (!Number.isFinite(ratio) || ratio <= 0) return 1;
   return Math.min(2.35, Math.max(0.75, ratio));
@@ -833,39 +828,6 @@ function watchImageRatio(img, drop, version) {
     applyImageRatio(drop, ratio);
     persistState();
   }, { once: true });
-}
-
-function attachDropHandlers(card, version) {
-  const drop = card.querySelector(".image-drop");
-  const input = card.querySelector("input");
-  const img = card.querySelector("img");
-
-  async function attachFile(file) {
-    if (!file || !file.type.startsWith("image/")) return;
-    version.image = await readFileAsDataUrl(file);
-    version.imageRatio = await getImageRatioFromSource(version.image);
-    applyImageRatio(drop, version.imageRatio);
-    img.src = version.image;
-    drop.classList.add("has-image");
-    drop.classList.remove("is-over");
-    renderPosterStudio();
-    persistState();
-  }
-
-  drop.addEventListener("click", () => input.click());
-  drop.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") input.click();
-  });
-  drop.addEventListener("dragover", (event) => {
-    event.preventDefault();
-    drop.classList.add("is-over");
-  });
-  drop.addEventListener("dragleave", () => drop.classList.remove("is-over"));
-  drop.addEventListener("drop", (event) => {
-    event.preventDefault();
-    attachFile(event.dataTransfer.files[0]);
-  });
-  input.addEventListener("change", () => attachFile(input.files[0]));
 }
 
 function hexToRgb(hex) {
@@ -1038,8 +1000,8 @@ function renderSetStudio() {
   } else if (locked) {
     const needed = 2 - count;
     els.setStatus.textContent = needed === 2
-      ? "Save 2 versions to unlock."
-      : "Save 1 more version to unlock.";
+      ? "Generate 2 images to unlock."
+      : "Generate 1 more image to unlock.";
   } else if (state.currencySet) {
     els.setStatus.textContent = state.currencySet.baseImageSource
       ? `Full set ready from ${state.currencySet.baseImageSource}.`
@@ -1492,7 +1454,7 @@ function renderVersions() {
   if (!state.versions.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "Generate or save Version 1, 2, 3 to compare prompts and images.";
+    empty.textContent = "Generate AI Image 1, 2, 3 to compare prompts and images.";
     els.versionList.append(empty);
     return;
   }
@@ -1536,7 +1498,6 @@ function renderVersions() {
         <small>${version.error || "try again"}</small>
       `;
     }
-    attachDropHandlers(card, version);
     els.versionList.append(fragment);
   });
 }
@@ -1569,23 +1530,6 @@ async function copyText(text) {
 function buildCurrentPrompt() {
   state.prompt = buildPrompt(state.selection);
   renderPrompt();
-}
-
-function saveVersion() {
-  if (!state.prompt) buildCurrentPrompt();
-  state.posterImage = "";
-  state.versions.unshift({
-    number: state.versions.length + 1,
-    prompt: state.prompt,
-    labels: labelsForCurrentPrompt(),
-    image: "",
-    source: "manual",
-  });
-  renderSetStudio();
-  renderPosterStudio();
-  renderVersions();
-  persistState();
-  showToast(`Version ${state.versions.length} saved`);
 }
 
 async function generateImage() {
@@ -1664,7 +1608,7 @@ async function generateCurrencySet() {
   if (state.isGeneratingSet) return;
   if (completedVersionCount() < 2) {
     renderSetStudio();
-    showToast("Save 2 versions to unlock");
+    showToast("Generate 2 images to unlock");
     return;
   }
 
@@ -1785,7 +1729,6 @@ els.buildButton.addEventListener("click", () => {
 });
 els.copyButton.addEventListener("click", () => copyText(state.prompt || buildPrompt(state.selection)));
 els.generateButton.addEventListener("click", generateImage);
-els.saveButton.addEventListener("click", saveVersion);
 els.mintSetButton.addEventListener("click", generateCurrencySet);
 els.makePosterButton.addEventListener("click", makePoster);
 els.downloadPosterButton.addEventListener("click", downloadPoster);
