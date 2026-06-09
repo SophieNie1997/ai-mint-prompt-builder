@@ -109,9 +109,25 @@ const DEFAULT_SELECTION = {
   fix: [],
 };
 
+const TRY_PROMPTS = {
+  a: {
+    label: "Design A",
+    prompt: "Draw money.",
+  },
+  b: {
+    label: "Design B",
+    prompt: "Draw cute island money.",
+  },
+  c: {
+    label: "Design C",
+    prompt: "Create Lumi Island money. The value is 10 shells. Add a turtle symbol because it means teamwork. Make it cartoon and colorful. Fantasy only. Do not copy real money.",
+  },
+};
+
 const STORAGE_KEY = "ai-mint-prompt-builder-state-v1";
 
 const state = {
+  appMode: "try",
   selection: structuredClone(DEFAULT_SELECTION),
   customValues: structuredClone(DEFAULT_CUSTOM_VALUES),
   prompt: "",
@@ -124,6 +140,7 @@ const state = {
   isGeneratingSet: false,
   isMakingPoster: false,
   outputTab: "images",
+  tryResults: {},
 };
 
 const GENERATION_MESSAGES = [
@@ -170,6 +187,11 @@ const els = {
   outputPanels: document.querySelectorAll("[data-output-panel]"),
   imagesTabBadge: document.querySelector("#imagesTabBadge"),
   posterTabBadge: document.querySelector("#posterTabBadge"),
+  modeTabButtons: document.querySelectorAll("[data-mode-tab]"),
+  modePanels: document.querySelectorAll(".mode-panel"),
+  tryPromptButtons: document.querySelectorAll("[data-try-prompt]"),
+  tryResultCards: document.querySelectorAll("[data-try-result]"),
+  buildBetterPromptButton: document.querySelector("#buildBetterPromptButton"),
 };
 
 function getSelectedOption(blockKey, optionId) {
@@ -213,6 +235,10 @@ function cleanSelection(selection) {
 
 function cleanOutputTab(tab) {
   return tab === "poster" ? "poster" : "images";
+}
+
+function cleanAppMode(mode) {
+  return mode === "designer" ? "designer" : "try";
 }
 
 function wordsFrom(selection, blockKey, field = "prompt") {
@@ -624,6 +650,7 @@ function persistState() {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
+        appMode: state.appMode,
         selection: state.selection,
         customValues: cleanCustomValues(state.customValues),
         prompt: state.prompt,
@@ -643,6 +670,7 @@ function restoreState() {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
     if (!stored || typeof stored !== "object") return;
+    state.appMode = cleanAppMode(stored.appMode);
     state.selection = cleanSelection(stored.selection);
     state.customValues = cleanCustomValues(stored.customValues);
     state.prompt = String(stored.prompt || "");
@@ -654,6 +682,110 @@ function restoreState() {
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
+}
+
+function switchAppMode(mode) {
+  state.appMode = cleanAppMode(mode);
+  renderAppMode();
+  persistState();
+}
+
+function renderAppMode() {
+  els.modeTabButtons.forEach((button) => {
+    const active = button.dataset.modeTab === state.appMode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+
+  els.modePanels.forEach((panel) => {
+    const active = panel.id === `${state.appMode}Mode`;
+    panel.classList.toggle("is-active", active);
+    panel.hidden = !active;
+  });
+}
+
+function renderTryResults() {
+  els.tryResultCards.forEach((card) => {
+    const id = card.dataset.tryResult;
+    const result = state.tryResults[id] || {};
+    const image = card.querySelector("img");
+    const empty = card.querySelector(".try-empty");
+    const prompt = card.querySelector("pre");
+    const button = document.querySelector(`[data-try-prompt="${id}"]`);
+
+    card.classList.toggle("is-loading", result.status === "loading");
+    card.classList.toggle("has-image", Boolean(result.image));
+    card.classList.toggle("is-failed", result.status === "failed");
+    button.disabled = result.status === "loading";
+    button.textContent = result.status === "loading"
+      ? "Minting..."
+      : `Try Design ${id.toUpperCase()}`;
+
+    if (result.image) {
+      image.src = result.image;
+      prompt.textContent = TRY_PROMPTS[id].prompt;
+      empty.textContent = "";
+    } else if (result.status === "loading") {
+      image.removeAttribute("src");
+      prompt.textContent = TRY_PROMPTS[id].prompt;
+      empty.textContent = "Asking AI to draw...";
+    } else if (result.status === "failed") {
+      image.removeAttribute("src");
+      prompt.textContent = TRY_PROMPTS[id].prompt;
+      empty.textContent = result.error || "Image not generated";
+    } else {
+      image.removeAttribute("src");
+      prompt.textContent = "";
+      empty.textContent = "No image yet";
+    }
+  });
+}
+
+async function generateTryDesign(id) {
+  const item = TRY_PROMPTS[id];
+  if (!item || state.tryResults[id]?.status === "loading") return;
+
+  if (window.location.protocol === "file:") {
+    state.tryResults = {
+      ...state.tryResults,
+      [id]: { status: "failed", error: "Open with local server to generate." },
+    };
+    renderTryResults();
+    showToast("Use local server for Try First");
+    return;
+  }
+
+  state.tryResults = {
+    ...state.tryResults,
+    [id]: { status: "loading" },
+  };
+  renderTryResults();
+
+  try {
+    const response = await fetch("/api/generate-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: item.prompt,
+        mode: "try-first",
+        tryDesign: id,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Image generation failed.");
+
+    state.tryResults = {
+      ...state.tryResults,
+      [id]: { status: "done", image: data.imageDataUrl },
+    };
+  } catch (error) {
+    state.tryResults = {
+      ...state.tryResults,
+      [id]: { status: "failed", error: error.message || "Image not generated" },
+    };
+  }
+
+  renderTryResults();
 }
 
 function versionChips(version) {
@@ -1661,6 +1793,13 @@ els.printPosterButton.addEventListener("click", printPoster);
 els.outputTabButtons.forEach((button) => {
   button.addEventListener("click", () => switchOutputTab(button.dataset.outputTab));
 });
+els.modeTabButtons.forEach((button) => {
+  button.addEventListener("click", () => switchAppMode(button.dataset.modeTab));
+});
+els.tryPromptButtons.forEach((button) => {
+  button.addEventListener("click", () => generateTryDesign(button.dataset.tryPrompt));
+});
+els.buildBetterPromptButton.addEventListener("click", () => switchAppMode("designer"));
 els.studentName.addEventListener("input", () => {
   state.studentName = els.studentName.value;
   state.posterImage = "";
@@ -1695,6 +1834,8 @@ els.clearVersionsButton.addEventListener("click", () => {
 
 restoreState();
 renderBlocks();
+renderAppMode();
+renderTryResults();
 render({ resetPrompt: false });
 renderVersions();
 renderSetStudio();
