@@ -157,6 +157,8 @@ const SET_VALUES = [
   { value: 100, label: "100 SHELLS", accent: "#f0b83b", tone: "golden yellow with a little royal purple", scene: "small premium celebration details around the same main symbol" },
 ];
 
+const POSTER_REQUIRED_IMAGE_COUNT = 3;
+
 let generationMessageTimer = null;
 
 const els = {
@@ -1060,7 +1062,7 @@ function posterImageVersions() {
 }
 
 function hasPosterInputs() {
-  return posterImageVersions().length > 0 || Boolean(state.currencySet?.notes?.length);
+  return posterImageVersions().length >= POSTER_REQUIRED_IMAGE_COUNT;
 }
 
 function renderOutputTabs() {
@@ -1370,10 +1372,13 @@ function renderPosterStudio() {
   } else if (ready) {
     const imageCount = posterImageVersions().length;
     els.posterStatus.textContent = state.currencySet
-      ? "Ready to make a poster with the money set."
+      ? "Ready to make a poster with the image journey and money set."
       : `Ready to make a poster with ${imageCount} image${imageCount === 1 ? "" : "s"}.`;
   } else {
-    els.posterStatus.textContent = "Generate one image to unlock.";
+    const needed = POSTER_REQUIRED_IMAGE_COUNT - posterImageVersions().length;
+    els.posterStatus.textContent = needed === POSTER_REQUIRED_IMAGE_COUNT
+      ? `Generate ${POSTER_REQUIRED_IMAGE_COUNT} images to unlock.`
+      : `Generate ${needed} more image${needed === 1 ? "" : "s"} to unlock.`;
   }
 
   els.posterLab.innerHTML = "";
@@ -1388,7 +1393,7 @@ function renderPosterStudio() {
 
 async function makePoster() {
   if (!hasPosterInputs() || state.isMakingPoster) {
-    showToast("Generate one image first");
+    showToast(`Generate ${POSTER_REQUIRED_IMAGE_COUNT} images first`);
     return;
   }
   state.outputTab = "poster";
