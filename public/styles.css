@@ -740,8 +740,9 @@ h2 {
 }
 
 .currency-set-bridge pre {
-  max-height: 88px;
-  overflow: auto;
+  max-height: 150px;
+  overflow-x: hidden;
+  overflow-y: auto;
   margin: 0;
   color: var(--ink);
   font-family: "Aptos Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -1317,7 +1318,7 @@ h2 {
   }
 
   .currency-set-bridge pre {
-    max-height: 72px;
+    max-height: 128px;
     font-size: 10px;
   }
 

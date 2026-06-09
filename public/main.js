@@ -928,14 +928,14 @@ function renderSetStudio() {
       <button class="mini-copy" type="button">Copy Set Prompt</button>
     </div>
     <div class="currency-set-bridge">
-      <span>Built from Step 2 Prompt</span>
-      <small>Master note style kept, set badge added</small>
+      <span>Set Generation Prompt</span>
+      <small>Built from Step 2 blocks + set rules</small>
       <pre></pre>
     </div>
     <div class="currency-set-grid"></div>
   `;
   card.querySelector(".mini-copy").addEventListener("click", () => copyText(state.currencySet.prompt));
-  card.querySelector(".currency-set-bridge pre").textContent = state.currencySet.sourcePrompt || state.currencySet.prompt;
+  card.querySelector(".currency-set-bridge pre").textContent = state.currencySet.prompt || state.currencySet.sourcePrompt;
   const grid = card.querySelector(".currency-set-grid");
   state.currencySet.notes.forEach((note) => {
     const linkedVersion = note.versionNumber ? findVersionByNumber(note.versionNumber) : null;
