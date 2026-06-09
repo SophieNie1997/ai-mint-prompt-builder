@@ -1087,7 +1087,8 @@ async function drawFinalSetSection(ctx, x, y, width, labels) {
 
   const setBoxWidth = Math.floor(width * 0.58);
   const recipeX = x + setBoxWidth + 34;
-  drawPosterBox(ctx, x, y + 58, setBoxWidth, 560, "#ffffff");
+  const finalPanelHeight = 620;
+  drawPosterBox(ctx, x, y + 58, setBoxWidth, finalPanelHeight, "#ffffff");
 
   if (state.currencySet?.notes?.length) {
     const gap = 22;
@@ -1117,13 +1118,15 @@ async function drawFinalSetSection(ctx, x, y, width, labels) {
     ctx.fillText("Final Image", x + setBoxWidth / 2, y + 548);
   }
 
-  drawPosterBox(ctx, recipeX, y + 58, width - setBoxWidth - 34, 560, "#fff8ca");
+  const recipePanelWidth = width - setBoxWidth - 34;
+  drawPosterBox(ctx, recipeX, y + 58, recipePanelWidth, finalPanelHeight, "#fff8ca");
   ctx.fillStyle = "#8c4019";
   ctx.font = "950 34px Arial Rounded MT Bold, Arial, sans-serif";
   ctx.textAlign = "left";
   ctx.fillText("Prompt Recipe", recipeX + 36, y + 112);
   let chipX = recipeX + 36;
   let chipY = y + 154;
+  let chipBottom = chipY;
   posterRecipeChips(labels).slice(0, 7).forEach((chip) => {
     const chipWidth = Math.min(width - setBoxWidth - 108, Math.max(142, chip.length * 18 + 46));
     if (chipX + chipWidth > x + width - 30) {
@@ -1131,16 +1134,29 @@ async function drawFinalSetSection(ctx, x, y, width, labels) {
       chipY += 68;
     }
     drawPosterChip(ctx, chip, chipX, chipY, chipWidth);
+    chipBottom = Math.max(chipBottom, chipY + 54);
     chipX += chipWidth + 16;
   });
+
+  const recipeBottom = y + 58 + finalPanelHeight;
+  const learnedTitleY = Math.min(
+    Math.max(y + 438, chipBottom + 56),
+    recipeBottom - 118,
+  );
+  ctx.strokeStyle = "rgba(140, 64, 25, 0.35)";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(recipeX + 36, learnedTitleY - 42);
+  ctx.lineTo(recipeX + recipePanelWidth - 36, learnedTitleY - 42);
+  ctx.stroke();
 
   ctx.fillStyle = "#c00000";
   ctx.font = "950 31px Arial Rounded MT Bold, Arial, sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText("Today I Learned", recipeX + 36, y + 428);
+  ctx.fillText("Today I Learned", recipeX + 36, learnedTitleY);
   ctx.fillStyle = "#241f1b";
   ctx.font = "900 28px Arial Rounded MT Bold, Arial, sans-serif";
-  drawWrappedText(ctx, "Clear words help AI create better pictures.", recipeX + 36, y + 472, width - setBoxWidth - 108, 38, 3);
+  drawWrappedText(ctx, "Clear words help AI create better pictures.", recipeX + 36, learnedTitleY + 48, width - setBoxWidth - 108, 38, 3);
 }
 
 async function composePosterImage() {
