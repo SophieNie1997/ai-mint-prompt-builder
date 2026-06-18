@@ -620,7 +620,7 @@ h2 {
   background: #dff4ff;
 }
 
-.prompt-token[data-role="meaning"] {
+.prompt-token[data-role="shape"] {
   background: #e6f7d9;
 }
 
@@ -628,11 +628,7 @@ h2 {
   background: #ffe5e5;
 }
 
-.prompt-token[data-role="safety"] {
-  background: #fff8ca;
-}
-
-.prompt-token[data-role="fix"] {
+.prompt-token[data-role="issuer"] {
   background: #efe7ff;
 }
 

@@ -2,31 +2,32 @@ const CUSTOM_OPTION_ID = "custom";
 
 const DEFAULT_CUSTOM_VALUES = {
   value: "",
+  shape: "",
   symbol: "",
-  meaning: "",
   style: "",
-  safety: "",
-  fix: "",
+  issuer: "",
 };
 
-const CUSTOM_OPTION = { id: CUSTOM_OPTION_ID, label: "custom", prompt: "", icon: "✏️" };
+const CUSTOM_OPTION = { id: CUSTOM_OPTION_ID, label: "自定义", prompt: "", icon: "✏️" };
 
 const CUSTOM_PROMPT_FALLBACKS = {
   value: "custom value",
+  shape: "custom shape",
   symbol: "custom symbol",
-  meaning: "special idea",
   style: "custom style",
-  safety: "",
-  fix: "",
+  issuer: "the student's name",
+};
+
+const CUSTOM_LABEL_FALLBACKS = {
+  issuer: "student name",
 };
 
 const CUSTOM_PLACEHOLDERS = {
-  value: "type value, e.g. 50 shells",
+  value: "type value, e.g. 8",
+  shape: "type shape, e.g. diamond",
   symbol: "type symbol, e.g. rainbow bridge",
-  meaning: "type meaning, e.g. courage",
   style: "type style, e.g. watercolor",
-  safety: "type rule, e.g. no scary faces",
-  fix: "type fix, e.g. simple border",
+  issuer: "type your name",
 };
 
 const BLOCKS = {
@@ -34,10 +35,21 @@ const BLOCKS = {
     title: "Value",
     mode: "single",
     options: [
-      { id: "5-shells", label: "5 shells", prompt: "5 shells", icon: "5" },
-      { id: "10-shells", label: "10 shells", prompt: "10 shells", icon: "10" },
-      { id: "20-shells", label: "20 shells", prompt: "20 shells", icon: "20" },
-      { id: "100-shells", label: "100 shells", prompt: "100 shells", icon: "100" },
+      { id: "value-1", label: "1", prompt: "1", icon: "1" },
+      { id: "value-2", label: "2", prompt: "2", icon: "2" },
+      { id: "value-5", label: "5", prompt: "5", icon: "5" },
+      { id: "value-10", label: "10", prompt: "10", icon: "10" },
+      CUSTOM_OPTION,
+    ],
+  },
+  shape: {
+    title: "Shape",
+    mode: "single",
+    options: [
+      { id: "rectangle", label: "长方形", prompt: "rectangle", icon: "▭" },
+      { id: "square", label: "正方形", prompt: "square", icon: "□" },
+      { id: "circle", label: "圆形", prompt: "circle", icon: "○" },
+      { id: "star", label: "星型", prompt: "star-shaped", icon: "☆" },
       CUSTOM_OPTION,
     ],
   },
@@ -45,68 +57,36 @@ const BLOCKS = {
     title: "Symbol",
     mode: "single",
     options: [
-      { id: "turtle", label: "turtle", prompt: "turtle", icon: "🐢" },
-      { id: "tree", label: "tree", prompt: "tree", icon: "🌳" },
-      { id: "lighthouse", label: "lighthouse", prompt: "lighthouse", icon: "🗼" },
-      { id: "shell", label: "shell", prompt: "shell", icon: "🐚" },
-      { id: "star", label: "star", prompt: "star", icon: "⭐" },
-      CUSTOM_OPTION,
-    ],
-  },
-  meaning: {
-    title: "Meaning",
-    mode: "single",
-    options: [
-      { id: "teamwork", label: "teamwork", prompt: "teamwork", icon: "🤝" },
-      { id: "growth", label: "growth", prompt: "growth", icon: "🌱" },
-      { id: "trust", label: "trust", prompt: "trust", icon: "🛡️" },
-      { id: "hope", label: "hope", prompt: "hope", icon: "☀️" },
-      { id: "special", label: "special", prompt: "special", icon: "✨" },
+      { id: "flower", label: "flower", prompt: "flower", icon: "🌸" },
+      { id: "fish", label: "fish", prompt: "fish", icon: "🐟" },
+      { id: "rocket", label: "rocket", prompt: "rocket", icon: "🚀" },
       CUSTOM_OPTION,
     ],
   },
   style: {
     title: "Style",
-    mode: "multi",
+    mode: "single",
     options: [
-      { id: "colorful", label: "colorful", prompt: "colorful", icon: "🌈" },
-      { id: "cute", label: "cute", prompt: "cute", icon: "😊" },
-      { id: "magical", label: "magical", prompt: "magical", icon: "✨" },
-      { id: "clean", label: "clean", prompt: "clean", icon: "🧼" },
-      { id: "cartoon", label: "cartoon", prompt: "cartoon", icon: "🎨" },
+      { id: "ink", label: "水墨画风", prompt: "Chinese ink painting style", icon: "墨" },
+      { id: "cartoon", label: "卡通风", prompt: "cartoon style", icon: "🎨" },
+      { id: "oil", label: "油画风", prompt: "oil painting style", icon: "🖌️" },
+      { id: "pixel", label: "像素风", prompt: "pixel art style", icon: "▦" },
       CUSTOM_OPTION,
     ],
   },
-  safety: {
-    title: "Safety",
-    mode: "multi",
-    options: [
-      { id: "fantasy-only", label: "fantasy only", prompt: "Fantasy only.", icon: "🏝️" },
-      { id: "no-real-money", label: "no real money", prompt: "Do not copy real money.", icon: "🚫" },
-      { id: "kid-friendly", label: "kid-friendly", prompt: "Kid-friendly.", icon: "🙂" },
-      CUSTOM_OPTION,
-    ],
-  },
-  fix: {
-    title: "Prompt Fix",
-    mode: "multi",
-    options: [
-      { id: "big-number", label: "big clear number", prompt: "Make the number big and clear in the center.", icon: "🔢" },
-      { id: "main-symbol", label: "main symbol", prompt: "Make the symbol large and easy to see.", icon: "👀" },
-      { id: "clean-background", label: "clean background", prompt: "Use a clean background with simple layout.", icon: "🧼" },
-      { id: "more-island", label: "more island", prompt: "Add ocean waves and island plants.", icon: "🌊" },
-      CUSTOM_OPTION,
-    ],
+  issuer: {
+    title: "Issuer",
+    mode: "text",
+    options: [],
   },
 };
 
 const DEFAULT_SELECTION = {
-  value: "10-shells",
-  symbol: "turtle",
-  meaning: "teamwork",
-  style: [],
-  safety: ["fantasy-only", "no-real-money"],
-  fix: [],
+  value: "value-10",
+  shape: "square",
+  symbol: "flower",
+  style: "cartoon",
+  issuer: CUSTOM_OPTION_ID,
 };
 
 const TRY_PROMPTS = {
@@ -120,7 +100,7 @@ const TRY_PROMPTS = {
   },
   c: {
     label: "Design C",
-    prompt: "Create Lumi Island money. The value is 10 shells. Add a turtle symbol because it means teamwork. Make it cartoon and colorful. Fantasy only. Do not copy real money.",
+    prompt: "Create fantasy island money for Lumi Island. The value is 10. Use a square money shape. Add a flower symbol. Use cartoon style. Add issuer name: Sophie. Fantasy only. Kid-friendly. Do not copy real money.",
   },
 };
 
@@ -151,10 +131,10 @@ const GENERATION_MESSAGES = [
 ];
 
 const SET_VALUES = [
-  { value: 5, label: "5 SHELLS", accent: "#57b9ff", tone: "aqua blue", scene: "small starter details around the same main symbol" },
-  { value: 10, label: "10 SHELLS", accent: "#ff8a3d", tone: "warm coral orange", scene: "small trade details around the same main symbol" },
-  { value: 20, label: "20 SHELLS", accent: "#64c56a", tone: "fresh leaf green", scene: "small growth details around the same main symbol" },
-  { value: 100, label: "100 SHELLS", accent: "#f0b83b", tone: "golden yellow with a little royal purple", scene: "small premium celebration details around the same main symbol" },
+  { value: 1, label: "1", accent: "#57b9ff", tone: "aqua blue", scene: "small starter details around the same main symbol" },
+  { value: 2, label: "2", accent: "#ff8a3d", tone: "warm coral orange", scene: "small trade details around the same main symbol" },
+  { value: 5, label: "5", accent: "#64c56a", tone: "fresh leaf green", scene: "small growth details around the same main symbol" },
+  { value: 10, label: "10", accent: "#f0b83b", tone: "golden yellow with a little royal purple", scene: "small premium celebration details around the same main symbol" },
 ];
 
 const POSTER_REQUIRED_IMAGE_COUNT = 3;
@@ -223,6 +203,10 @@ function cleanSelection(selection) {
   const next = structuredClone(DEFAULT_SELECTION);
   Object.entries(BLOCKS).forEach(([blockKey, block]) => {
     const value = selection?.[blockKey];
+    if (block.mode === "text") {
+      next[blockKey] = CUSTOM_OPTION_ID;
+      return;
+    }
     if (block.mode === "single") {
       if (block.options.some((option) => option.id === value)) next[blockKey] = value;
       return;
@@ -249,7 +233,8 @@ function wordsFrom(selection, blockKey, field = "prompt") {
       if (id === CUSTOM_OPTION_ID) {
         const custom = cleanCustomValue(state.customValues[blockKey]);
         if (custom) return custom;
-        return field === "label" ? "custom" : CUSTOM_PROMPT_FALLBACKS[blockKey];
+        if (field === "label") return CUSTOM_LABEL_FALLBACKS[blockKey] || "自定义";
+        return CUSTOM_PROMPT_FALLBACKS[blockKey];
       }
       return getSelectedOption(blockKey, id)[field];
     })
@@ -273,26 +258,27 @@ function buildPrompt(selection) {
   if (state.weakMode) return "Draw money.";
 
   const value = wordsFrom(selection, "value")[0];
+  const shape = wordsFrom(selection, "shape")[0];
   const symbol = wordsFrom(selection, "symbol")[0];
-  const meaning = wordsFrom(selection, "meaning")[0];
-  const styles = joinWords(wordsFrom(selection, "style"));
-  const safety = wordsFrom(selection, "safety").join(" ");
-  const fixes = wordsFrom(selection, "fix").join(" ");
+  const style = joinWords(wordsFrom(selection, "style"));
+  const issuer = wordsFrom(selection, "issuer")[0];
 
   return [
     "Create fantasy island money for Lumi Island.",
     `The value is ${value}.`,
-    `Add a ${symbol} symbol because it means ${meaning}.`,
-    styles ? `Make it ${styles}.` : "",
-    safety,
-    fixes,
+    `Use a ${shape} money shape.`,
+    `Add a ${symbol} symbol.`,
+    style ? `Use ${style}.` : "",
+    issuer ? `Add issuer name: ${issuer}.` : "",
+    "Fantasy only. Kid-friendly. Do not copy real money.",
   ].filter(Boolean).join("\n");
 }
 
 function buildCurrencySetPrompt(selection, step2Prompt = buildPrompt(selection)) {
   const labels = getSelectionLabels(selection);
-  const styles = labels.style || "colorful, clean, and cute";
-  const safety = labels.safety || "fantasy only, no real money, kid-friendly";
+  const shape = labels.shape || "square";
+  const style = labels.style || "cartoon style";
+  const issuer = labels.issuer || "the student's name";
   const setValues = SET_VALUES.map((note) => note.value).join(", ");
 
   return [
@@ -300,11 +286,11 @@ function buildCurrencySetPrompt(selection, step2Prompt = buildPrompt(selection))
     step2Prompt.trim(),
     "",
     "Now expand the same block choices into one matching Lumi Island money system.",
+    `Keep the selected shape: ${shape}.`,
     `Keep the selected symbol: ${labels.symbol}.`,
-    `Keep the selected meaning: ${labels.meaning}.`,
-    `Keep the selected style: ${styles}.`,
-    `Keep the selected safety rules: ${safety}.`,
-    `Change the single value into a full set of values: ${setValues} shells.`,
+    `Keep the selected style: ${style}.`,
+    `Keep the selected issuer name: ${issuer}.`,
+    `Change the single value into a full set of values: ${setValues}.`,
     "Make four related but not identical fantasy money notes.",
     "Each note should have a different value, color tone, and small scene motif while staying in one visual family.",
     "Create every note as a square 1:1 currency design, not a long horizontal banknote.",
@@ -320,8 +306,8 @@ function buildCurrencyMasterPrompt(step2Prompt, masterValue) {
     "Use this Step 2 prompt as the design brief:",
     step2Prompt.trim(),
     "",
-    `Create ONE square 1:1 Lumi Island fantasy money note for ${masterValue} shells.`,
-    `The value must be exactly ${masterValue} shells.`,
+    `Create ONE square 1:1 Lumi Island fantasy money note for value ${masterValue}.`,
+    `The value must be exactly ${masterValue}.`,
     "Use a square 1:1 composition, not a long horizontal banknote.",
     "Keep the whole currency design inside the square frame with safe margins.",
     "Leave the bottom-right corner calm enough for a small denomination badge.",
@@ -335,21 +321,22 @@ function selectedValueNumber(selection) {
 
 function buildCurrencyNotePrompt(selection, step2Prompt, note, masterValue) {
   const labels = getSelectionLabels(selection);
-  const styles = labels.style || "colorful, clean, and cute";
-  const safety = labels.safety || "fantasy only, no real money, kid-friendly";
+  const shape = labels.shape || "square";
+  const style = labels.style || "cartoon style";
+  const issuer = labels.issuer || "the student's name";
 
   return [
     "Use this Step 2 prompt as the style brief:",
     step2Prompt.trim(),
     "",
-    `The class already has a master note for ${masterValue} shells from the Step 2 prompt.`,
-    `Create ONE sister note for the ${note.label} denomination.`,
-    `The value must be exactly ${note.value} shells.`,
+    `The class already has a master note for value ${masterValue} from the Step 2 prompt.`,
+    `Create ONE sister note for value ${note.value}.`,
+    `The value must be exactly ${note.value}.`,
     `Show the number ${note.value} clearly and do not show any other denomination number.`,
+    `Keep the selected shape: ${shape}.`,
     `Keep the selected symbol: ${labels.symbol}.`,
-    `Keep the selected meaning: ${labels.meaning}.`,
-    `Keep the selected style: ${styles}.`,
-    `Keep the selected safety rules: ${safety}.`,
+    `Keep the selected style: ${style}.`,
+    `Keep the selected issuer name: ${issuer}.`,
     `Use this denomination color tone: ${note.tone}.`,
     `Use this small denomination detail: ${note.scene}.`,
     "Use a square 1:1 composition, not a long horizontal banknote.",
@@ -366,39 +353,26 @@ function buildPromptParts(selection) {
   if (state.weakMode) return [[{ text: "Draw money." }]];
 
   const value = wordsFrom(selection, "value")[0];
+  const shape = wordsFrom(selection, "shape")[0];
   const symbol = wordsFrom(selection, "symbol")[0];
-  const meaning = wordsFrom(selection, "meaning")[0];
   const styles = wordsFrom(selection, "style");
-  const safety = wordsFrom(selection, "safety");
-  const fixes = wordsFrom(selection, "fix");
+  const issuer = wordsFrom(selection, "issuer")[0];
   const lines = [
     promptLine(["Create fantasy island money for Lumi Island."]),
     promptLine(["The value is ", { text: value, role: "value" }, "."]),
-    promptLine(["Add a ", { text: symbol, role: "symbol" }, " symbol because it means ", { text: meaning, role: "meaning" }, "."]),
+    promptLine(["Use a ", { text: shape, role: "shape" }, " money shape."]),
+    promptLine(["Add a ", { text: symbol, role: "symbol" }, " symbol."]),
   ];
 
   if (styles.length) {
-    lines.push(promptLine(["Make it ", ...styles.flatMap((style, index) => [
+    lines.push(promptLine(["Use ", ...styles.flatMap((style, index) => [
       index > 0 ? (index === styles.length - 1 ? " and " : ", ") : "",
       { text: style, role: "style" },
     ]), "."]));
   }
 
-  if (safety.length) {
-    lines.push(promptLine(safety.flatMap((item, index) => [
-      index > 0 ? " " : "",
-      { text: item.replace(/\.$/, ""), role: "safety" },
-      ".",
-    ])));
-  }
-
-  if (fixes.length) {
-    lines.push(promptLine(fixes.flatMap((fix, index) => [
-      index > 0 ? " " : "",
-      { text: fix.replace(/\.$/, ""), role: "fix" },
-      ".",
-    ])));
-  }
+  if (issuer) lines.push(promptLine(["Add issuer name: ", { text: issuer, role: "issuer" }, "."]));
+  lines.push(promptLine(["Fantasy only. Kid-friendly. Do not copy real money."]));
 
   return lines;
 }
@@ -406,6 +380,10 @@ function buildPromptParts(selection) {
 function updateSelection(blockKey, optionId) {
   state.weakMode = false;
   const block = BLOCKS[blockKey];
+  if (block.mode === "text") {
+    state.selection = { ...state.selection, [blockKey]: CUSTOM_OPTION_ID };
+    return;
+  }
   if (block.mode === "single") {
     state.selection = { ...state.selection, [blockKey]: optionId };
     return;
@@ -442,11 +420,11 @@ function renderBlocks() {
     section.innerHTML = `
       <div class="block-head">
         <h3 class="block-title">${block.title}</h3>
-        <span class="block-mode">${block.mode === "single" ? "pick one" : "pick many"}</span>
+        <span class="block-mode">${block.mode === "text" ? "type here" : block.mode === "single" ? "pick one" : "pick many"}</span>
       </div>
       <div class="option-grid"></div>
       <label class="custom-row" data-custom-row="${blockKey}">
-        <span>Custom word</span>
+        <span>${block.mode === "text" ? "Student name" : "Custom word"}</span>
         <input
           type="text"
           data-custom-block="${blockKey}"
@@ -460,6 +438,9 @@ function renderBlocks() {
     `;
 
     const grid = section.querySelector(".option-grid");
+    if (block.mode === "text") {
+      grid.hidden = true;
+    }
     block.options.forEach((option) => {
       const button = document.createElement("button");
       button.type = "button";
@@ -479,6 +460,7 @@ function renderBlocks() {
 
     const input = section.querySelector(`[data-custom-block="${blockKey}"]`);
     input.addEventListener("focus", () => {
+      if (block.mode === "text") return;
       if (selectedList(state.selection, blockKey).includes(CUSTOM_OPTION_ID)) return;
       updateSelection(blockKey, CUSTOM_OPTION_ID);
       render();
@@ -508,8 +490,9 @@ function renderSelections() {
   });
   document.querySelectorAll(".custom-row").forEach((row) => {
     const blockKey = row.dataset.customRow;
+    const block = BLOCKS[blockKey];
     const input = row.querySelector("input");
-    const isActive = selectedList(state.selection, blockKey).includes(CUSTOM_OPTION_ID);
+    const isActive = block?.mode === "text" || selectedList(state.selection, blockKey).includes(CUSTOM_OPTION_ID);
     row.classList.toggle("is-active", isActive);
     input.disabled = !isActive;
     if (input.value !== state.customValues[blockKey]) input.value = state.customValues[blockKey] || "";
@@ -528,7 +511,7 @@ function renderPrompt() {
   const labels = getSelectionLabels(state.selection);
   els.selectionSummary.textContent = state.weakMode
     ? "Round 1: let AI guess"
-    : [labels.value, labels.symbol, labels.meaning, labels.style].filter(Boolean).join(" · ");
+    : [labels.value, labels.shape, labels.symbol, labels.style, labels.issuer].filter(Boolean).join(" · ");
 }
 
 function renderPromptTokens() {
@@ -573,7 +556,7 @@ function stopGenerationMessages() {
 
 function labelsForCurrentPrompt() {
   return state.weakMode
-    ? { value: "weak prompt", symbol: "", meaning: "", style: "", safety: "", fix: "" }
+    ? { value: "weak prompt", shape: "", symbol: "", style: "", issuer: "" }
     : getSelectionLabels(state.selection);
 }
 
@@ -795,7 +778,7 @@ async function generateTryDesign(id) {
 }
 
 function versionChips(version) {
-  const keys = ["value", "symbol", "meaning", "style", "safety", "fix"];
+  const keys = ["value", "shape", "symbol", "style", "issuer"];
   return keys
     .map((key) => version.labels[key])
     .filter(Boolean)
@@ -925,7 +908,7 @@ function drawCurrencyNote(ctx, note, baseImage, labels) {
   ctx.font = `950 ${Math.round(badgeHeight * 0.58)}px Arial Rounded MT Bold, Arial, sans-serif`;
   ctx.fillText(String(note.value), width / 2, badgeY + Math.round(badgeHeight * 0.55));
   ctx.font = `900 ${Math.round(badgeHeight * 0.2)}px Arial Rounded MT Bold, Arial, sans-serif`;
-  ctx.fillText("SHELLS", width / 2, badgeY + Math.round(badgeHeight * 0.82));
+  ctx.fillText("VALUE", width / 2, badgeY + Math.round(badgeHeight * 0.82));
 }
 
 async function composeCurrencyNotes(baseImageDataUrl, labels) {
@@ -982,7 +965,7 @@ async function prepareCurrencySetNote(generatedImageDataUrl, note) {
   ctx.font = `950 ${Math.round(badgeHeight * 0.52)}px Arial Rounded MT Bold, Arial, sans-serif`;
   ctx.fillText(String(note.value), badgeX + badgeWidth / 2, badgeY + Math.round(badgeHeight * 0.5));
   ctx.font = `900 ${Math.round(badgeHeight * 0.18)}px Arial Rounded MT Bold, Arial, sans-serif`;
-  ctx.fillText("SHELLS", badgeX + badgeWidth / 2, badgeY + Math.round(badgeHeight * 0.78));
+  ctx.fillText("VALUE", badgeX + badgeWidth / 2, badgeY + Math.round(badgeHeight * 0.78));
 
   return {
     ...note,
@@ -1105,17 +1088,16 @@ function posterLabels() {
 }
 
 function posterRecipeChips(labels) {
-  return ["value", "symbol", "meaning", "style", "safety", "fix"]
+  return ["value", "shape", "symbol", "style", "issuer"]
     .map((key) => labels?.[key])
     .filter(Boolean);
 }
 
 function describePromptChange(previous, current, index) {
   if (!previous) return index === 0 ? "First try" : "New idea";
-  const order = ["value", "symbol", "meaning", "style", "fix", "safety"];
+  const order = ["value", "shape", "symbol", "style", "issuer"];
   const changed = order.find((key) => previous.labels?.[key] !== current.labels?.[key] && current.labels?.[key]);
   if (!changed) return "Prompt improved";
-  if (changed === "fix") return "Added a fix";
   return `Changed ${changed}`;
 }
 
@@ -1340,7 +1322,7 @@ async function composePosterImage() {
   ctx.fillText("My Design Sentence", 164, 1772);
   ctx.fillStyle = "#241f1b";
   ctx.font = "900 32px Arial Rounded MT Bold, Arial, sans-serif";
-  const sentence = `My island money uses ${labels.symbol || "a symbol"} to show ${labels.meaning || "an idea"}.`;
+  const sentence = `My ${labels.shape || "island"} money uses ${labels.symbol || "a symbol"} in ${labels.style || "my style"}.`;
   drawWrappedText(ctx, sentence, 164, 1830, 1268, 46, 3);
   ctx.fillStyle = "#8c4019";
   ctx.font = "900 28px Arial Rounded MT Bold, Arial, sans-serif";
