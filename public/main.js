@@ -8,7 +8,7 @@ const DEFAULT_CUSTOM_VALUES = {
   issuer: "",
 };
 
-const CUSTOM_OPTION = { id: CUSTOM_OPTION_ID, label: "自定义", prompt: "", icon: "✏️" };
+const CUSTOM_OPTION = { id: CUSTOM_OPTION_ID, label: "Custom", prompt: "", icon: "✏️" };
 
 const CUSTOM_PROMPT_FALLBACKS = {
   value: "custom value",
@@ -46,10 +46,10 @@ const BLOCKS = {
     title: "Shape",
     mode: "single",
     options: [
-      { id: "rectangle", label: "长方形", prompt: "rectangle", icon: "▭" },
-      { id: "square", label: "正方形", prompt: "square", icon: "□" },
-      { id: "circle", label: "圆形", prompt: "circle", icon: "○" },
-      { id: "star", label: "星型", prompt: "star-shaped", icon: "☆" },
+      { id: "rectangle", label: "Rectangle", prompt: "rectangle", icon: "▭" },
+      { id: "square", label: "Square", prompt: "square", icon: "□" },
+      { id: "circle", label: "Circle", prompt: "circle", icon: "○" },
+      { id: "star", label: "Star", prompt: "star-shaped", icon: "☆" },
       CUSTOM_OPTION,
     ],
   },
@@ -67,10 +67,10 @@ const BLOCKS = {
     title: "Style",
     mode: "single",
     options: [
-      { id: "ink", label: "水墨画风", prompt: "Chinese ink painting style", icon: "墨" },
-      { id: "cartoon", label: "卡通风", prompt: "cartoon style", icon: "🎨" },
-      { id: "oil", label: "油画风", prompt: "oil painting style", icon: "🖌️" },
-      { id: "pixel", label: "像素风", prompt: "pixel art style", icon: "▦" },
+      { id: "ink", label: "Ink Wash - Painting", prompt: "Ink Wash - Painting", icon: "🖌️" },
+      { id: "cartoon", label: "Cartoon", prompt: "Cartoon", icon: "🎨" },
+      { id: "oil", label: "Oil Painting", prompt: "Oil Painting", icon: "🖌️" },
+      { id: "pixel", label: "Pixel Art", prompt: "Pixel Art", icon: "▦" },
       CUSTOM_OPTION,
     ],
   },
@@ -233,7 +233,7 @@ function wordsFrom(selection, blockKey, field = "prompt") {
       if (id === CUSTOM_OPTION_ID) {
         const custom = cleanCustomValue(state.customValues[blockKey]);
         if (custom) return custom;
-        if (field === "label") return CUSTOM_LABEL_FALLBACKS[blockKey] || "自定义";
+        if (field === "label") return CUSTOM_LABEL_FALLBACKS[blockKey] || "Custom";
         return CUSTOM_PROMPT_FALLBACKS[blockKey];
       }
       return getSelectedOption(blockKey, id)[field];
